@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Incident Command 0.9.9{% endblock %}
+{% block content %}
+<h1>Incident Command & Postmortem · 0.9.9</h1>
+<p>War room, timeline, ações de contenção/correção, causa raiz, 5 Whys e aprendizado.</p>
+{% for row in rows %}
+<section class="card">
+<h2>{{ row.plant.code }} — {{ row.plant.name }}</h2>
+<p><b>Incidentes maiores:</b> {{ row.metrics.major_incidents }} · <b>Ativos:</b> {{ row.metrics.active }} · <b>SEV1:</b> {{ row.metrics.sev1 }} · <b>MTTR:</b> {{ row.metrics.mttr_minutes }} min · <b>Ações abertas:</b> {{ row.metrics.open_actions }}</p>
+<table><thead><tr><th>Código</th><th>Severidade</th><th>Status</th><th>Título</th><th>Comandante</th><th>Início</th></tr></thead><tbody>
+{% for i in row.incidents %}<tr><td><a href="{% url 'integrated-scheduling:mps-major-incident-detail-099' i.pk %}">{{ i.code }}</a></td><td>{{ i.severity }}</td><td>{{ i.status }}</td><td>{{ i.title }}</td><td>{{ i.commander|default:"—" }}</td><td>{{ i.started_at }}</td></tr>{% empty %}<tr><td colspan="6">Nenhum incidente maior.</td></tr>{% endfor %}
+</tbody></table>
+</section>
+{% endfor %}
+{% endblock %}

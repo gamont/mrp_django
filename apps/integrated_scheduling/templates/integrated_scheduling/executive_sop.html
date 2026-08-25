@@ -1,0 +1,13 @@
+{% extends "ui/base.html" %}{% block title %}Executive S&OP{% endblock %}{% block content %}
+<div class="page-header"><div><h1>Executive S&OP · 0.7.8</h1><p>{{ plant }} · {{ month }}/{{ year }}</p></div></div>
+{% if snapshot %}<div class="kpi-grid">
+<div class="kpi"><span>OTIF</span><strong>{{ snapshot.otif_pct }}%</strong></div><div class="kpi"><span>Forecast accuracy</span><strong>{{ snapshot.forecast_accuracy_pct }}%</strong></div>
+<div class="kpi"><span>OEE</span><strong>{{ snapshot.oee_pct }}%</strong></div><div class="kpi"><span>Utilização capacidade</span><strong>{{ snapshot.capacity_utilization_pct }}%</strong></div>
+<div class="kpi"><span>Backlog vencido</span><strong>{{ snapshot.overdue_backlog_quantity }}</strong></div><div class="kpi"><span>Estoque</span><strong>{{ snapshot.inventory_quantity }}</strong></div>
+<div class="kpi"><span>Valor estoque</span><strong>R$ {{ snapshot.inventory_value }}</strong></div><div class="kpi"><span>Receita em risco*</span><strong>R$ {{ snapshot.revenue_at_risk }}</strong><small>cobertura de preço {{ snapshot.revenue_coverage_pct }}%</small></div>
+</div><p class="muted">* Receita em risco usa somente linhas com unit_net_price informado; a cobertura evita apresentar ausência de preço como receita zero conhecida.</p>{% endif %}
+<div class="panel"><h2>Cenário what-if agregado</h2><form method="post" action="{% url 'integrated-scheduling:executive-sop-scenario-create' %}">{% csrf_token %}
+<div class="form-grid"><label>Nome<input name="name" value="S&OP what-if"></label><label>Início<input type="date" name="horizon_start" required></label><label>Fim<input type="date" name="horizon_end" required></label>
+<label>Δ demanda %<input type="number" step="0.01" name="demand_change_pct" value="0"></label><label>Δ capacidade %<input type="number" step="0.01" name="capacity_change_pct" value="0"></label><label>Δ estoque %<input type="number" step="0.01" name="inventory_change_pct" value="0"></label></div><button class="btn" type="submit">Simular</button></form></div>
+<div class="panel"><h2>Cenários recentes</h2><table><thead><tr><th>Nome</th><th>Status</th><th>Demanda</th><th>Capacidade</th><th>Gap projetado</th><th>Utilização</th></tr></thead><tbody>{% for s in scenarios %}<tr><td>{{ s.name }}</td><td>{{ s.status }}</td><td>{{ s.demand_change_pct }}%</td><td>{{ s.capacity_change_pct }}%</td><td>{{ s.simulated.projected_supply_gap_qty|default:'—' }}</td><td>{{ s.simulated.capacity_utilization_pct|default:'—' }}%</td></tr>{% empty %}<tr><td colspan="6">Sem cenários.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

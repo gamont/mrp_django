@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="{% url 'integrated-scheduling:mps-decision-integrity-dashboard-095' %}">← Painel de integridade 0.9.5</a></p>
+<h1>Trilha de auditoria · Cockpit #{{ cockpit.id }}</h1>
+<p>Status da cadeia: <strong>{% if verification.ok %}VÁLIDA{% else %}INVÁLIDA{% endif %}</strong> · eventos {{ verification.event_count }} · head <code>{{ verification.head_hash }}</code></p>
+<form method="post" action="{% url 'integrated-scheduling:mps-decision-evidence-export-093' cockpit.id %}">{% csrf_token %}<button type="submit">Exportar pacote de evidências ZIP</button></form>
+<table><thead><tr><th>#</th><th>Data</th><th>Evento</th><th>Ator</th><th>Hash anterior</th><th>Hash</th></tr></thead><tbody>
+{% for e in events %}<tr><td>{{ e.sequence }}</td><td>{{ e.occurred_at }}</td><td>{{ e.event_type }}</td><td>{{ e.actor_username }}</td><td><code>{{ e.previous_hash|slice:":12" }}…</code></td><td><code>{{ e.event_hash|slice:":12" }}…</code></td></tr>{% empty %}<tr><td colspan="6">Sem eventos.</td></tr>{% endfor %}
+</tbody></table>
+{% if not verification.ok %}<h2>Falhas</h2><pre>{{ verification.errors }}</pre>{% endif %}
+<h2>Exportações</h2><table><tr><th>Data</th><th>Verificação</th><th>SHA-256 pacote</th></tr>{% for x in exports %}<tr><td>{{ x.generated_at }}</td><td>{{ x.verification_ok }}</td><td><code>{{ x.package_sha256 }}</code></td></tr>{% endfor %}</table>
+{% endblock %}
+<section class="card mt-4">
+  <h2>Âncora externa de integridade · 0.9.4</h2>
+  <p>A âncora preserva externamente o HEAD hash de um ponto específico da cadeia. O evento de publicação é acrescentado depois da âncora, por isso a verificação compara o hash no <em>anchored_sequence</em>, não apenas o HEAD atual.</p>
+  <p><strong>Última verificação:</strong> {% if anchor_verification.ok %}OK{% else %}NÃO CONFIRMADA{% endif %}</p>
+  <form method="post" action="{% url 'integrated-scheduling:mps-decision-anchor-publish-094' cockpit.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="provider" value="FILE_APPEND_ONLY">
+    <button type="submit">Publicar âncora externa</button>
+  </form>
+  <form method="post" action="{% url 'integrated-scheduling:mps-decision-anchor-publish-094' cockpit.pk %}" style="margin-top:.5rem">{% csrf_token %}<input type="hidden" name="provider" value="FILE_SECONDARY"><button type="submit">Publicar âncora secundária</button></form>
+  <form method="post" action="{% url 'integrated-scheduling:mps-decision-anchor-verify-094' cockpit.pk %}" style="margin-top:.5rem">
+    {% csrf_token %}<button type="submit">Verificar banco × âncora</button>
+  </form>
+  <table>
+    <thead><tr><th>Seq.</th><th>Provider</th><th>Status</th><th>HEAD ancorado</th><th>Referência externa</th><th>Data</th></tr></thead>
+    <tbody>
+      {% for a in anchors %}<tr><td>{{ a.anchored_sequence }}</td><td>{{ a.provider }}</td><td>{{ a.status }}</td><td><code>{{ a.anchored_head_hash }}</code></td><td>{{ a.external_reference }}</td><td>{{ a.anchored_at }}</td></tr>
+      {% empty %}<tr><td colspan="6">Nenhuma âncora externa publicada.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>

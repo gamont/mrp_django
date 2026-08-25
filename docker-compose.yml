@@ -1,0 +1,91 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mrp}
+      POSTGRES_USER: ${POSTGRES_USER:-mrp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mrp}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mrp} -d ${POSTGRES_DB:-mrp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build: .
+    command: >-
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers ${GUNICORN_WORKERS:-3}
+      --timeout ${GUNICORN_TIMEOUT:-60}
+      --access-logfile -
+      --error-logfile -
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    ports:
+      - "${WEB_HOST_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready/', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    stop_grace_period: 30s
+
+  worker:
+    build: .
+    command: celery -A config worker -l ${CELERY_LOG_LEVEL:-INFO} --concurrency=${CELERY_CONCURRENCY:-2}
+    env_file:
+      - .env
+    environment:
+      SKIP_DJANGO_BOOTSTRAP: "1"
+    volumes:
+      - .:/app
+    depends_on:
+      web:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    stop_grace_period: 90s
+
+  beat:
+    build: .
+    command: celery -A config beat -l ${CELERY_LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    environment:
+      SKIP_DJANGO_BOOTSTRAP: "1"
+    volumes:
+      - .:/app
+    depends_on:
+      web:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    stop_grace_period: 30s
+
+volumes:
+  postgres_data:
+  redis_data:

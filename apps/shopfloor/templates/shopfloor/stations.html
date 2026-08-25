@@ -1,0 +1,20 @@
+{% extends "shopfloor/base.html" %}
+{% block title %}Selecionar estação{% endblock %}
+{% block body %}
+<header class="sf-header"><div><strong>MRP Shop Floor</strong><span>{{ request.user.get_full_name|default:request.user.username }}</span></div><div class="sf-header-actions"><a class="sf-btn ghost" href="{% url 'shopfloor:andon' %}">Andon</a><form method="post" action="{% url 'shopfloor:logout' %}">{% csrf_token %}<button class="sf-btn ghost">Sair</button></form></div><a class="sf-btn ghost" href="/maintenance/">Manutenção</a></header>
+<main class="sf-stations">
+  <h1>Selecione a estação</h1>
+  <div class="sf-station-grid">
+    {% for station in stations %}
+    <form method="post" action="{% url 'shopfloor:select-station' %}" class="sf-station-card">
+      {% csrf_token %}<input type="hidden" name="station_id" value="{{ station.pk }}">
+      <span class="sf-kicker">{{ station.plant.code }}</span>
+      <strong>{{ station.code }}</strong>
+      <h2>{{ station.name }}</h2>
+      <p>{% if station.machine %}Máquina {{ station.machine.code }} · {{ station.machine.name }}{% elif station.work_center %}Centro {{ station.work_center.code }} · {{ station.work_center.name }}{% else %}Sem centro definido{% endif %}</p>
+      <button class="sf-btn primary xl">Abrir terminal</button>
+    </form>
+    {% empty %}<div class="sf-empty">Nenhuma estação ativa cadastrada.</div>{% endfor %}
+  </div>
+</main>
+{% endblock %}

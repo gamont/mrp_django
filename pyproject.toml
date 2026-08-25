@@ -1,0 +1,41 @@
+[project]
+name = "mrp-django"
+version = "0.8.3"
+description = "MRP/MRP II API em Django, Django REST Framework e PostgreSQL"
+requires-python = ">=3.12"
+dependencies = [
+  "Django>=5.2,<5.3",
+  "djangorestframework>=3.16,<3.17",
+  "django-filter>=25.1,<26",
+  "drf-spectacular>=0.28,<0.29",
+  "djangorestframework-simplejwt>=5.5,<6",
+  "psycopg[binary]>=3.2,<3.3",
+  "gunicorn>=23,<24",
+  "ortools>=9.14,<10",
+  "celery>=5.5,<6",
+  "redis>=6,<7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9", "pytest-django>=4.11,<5", "ruff>=0.9,<1", "coverage[toml]>=7,<8"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.coverage.run]
+branch = true
+source = ["apps"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

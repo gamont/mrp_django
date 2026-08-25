@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Cockpit de decisão MRP/MPS · 0.9.0</h1>
+<p>Governança executiva da fronteira Pareto: comparar, justificar, aprovar e congelar o cenário escolhido como revisão oficial do MPS.</p>
+<h2>Cockpits</h2>
+<table class="table"><thead><tr><th>ID</th><th>Planta</th><th>MPS</th><th>Run</th><th>Status</th><th>Selecionado</th><th>Oficial</th><th></th></tr></thead><tbody>
+{% for x in cockpits %}<tr><td>#{{ x.id }}</td><td>{{ x.publication.cycle.plant.code }}</td><td>{{ x.publication.source }}</td><td>#{{ x.optimization_run.id }}</td><td>{{ x.get_status_display }}</td><td>{% if x.selected_candidate %}{{ x.selected_candidate.name }}{% else %}—{% endif %}</td><td>{% if x.official_revision %}r{{ x.official_revision.number }}{% else %}—{% endif %}</td><td><a href="{% url 'integrated-scheduling:mps-decision-cockpit-detail-090' x.id %}">Abrir</a></td></tr>{% empty %}<tr><td colspan="8">Nenhum cockpit criado.</td></tr>{% endfor %}
+</tbody></table>
+<h2>Otimizações Pareto prontas</h2>
+<table class="table"><thead><tr><th>Run</th><th>Planta</th><th>Revisão</th><th>Baseline</th><th>Concluído</th><th>Ação</th></tr></thead><tbody>
+{% for r in completed_runs %}<tr><td>#{{ r.id }}</td><td>{{ r.revision.publication.cycle.plant.code }}</td><td>r{{ r.revision.number }}</td><td>r{{ r.compare_revision.number }}</td><td>{{ r.completed_at }}</td><td><form method="post" action="{% url 'integrated-scheduling:mps-decision-cockpit-create-090' r.id %}">{% csrf_token %}<button>Criar cockpit</button></form></td></tr>{% empty %}<tr><td colspan="6">Nenhuma otimização CP-SAT Pareto concluída sem cockpit.</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}

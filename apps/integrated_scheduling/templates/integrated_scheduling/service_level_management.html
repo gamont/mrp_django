@@ -1,0 +1,21 @@
+{% extends "ui/base.html" %}
+{% block content %}
+<h1>Nível de serviço — visão gerencial</h1>
+<p>OTIF, fill rate, backlog vencido, metas e Pareto de causas por cliente, família, item ou planta.</p>
+<form method="get" class="card">
+  <label>Referência</label>
+  <select name="reference"><option value="CUSTOMER_ACCEPTED" {% if reference == 'CUSTOMER_ACCEPTED' %}selected{% endif %}>Aceita pelo cliente</option><option value="APPROVED_PROMISE" {% if reference == 'APPROVED_PROMISE' %}selected{% endif %}>Promessa aprovada</option><option value="REQUESTED" {% if reference == 'REQUESTED' %}selected{% endif %}>Solicitada</option></select>
+  <label>Agrupar</label>
+  <select name="scope"><option value="CUSTOMER" {% if scope == 'CUSTOMER' %}selected{% endif %}>Cliente</option><option value="FAMILY" {% if scope == 'FAMILY' %}selected{% endif %}>Família</option><option value="ITEM" {% if scope == 'ITEM' %}selected{% endif %}>Item</option><option value="PLANT" {% if scope == 'PLANT' %}selected{% endif %}>Planta</option></select>
+  <button type="submit">Aplicar</button>
+</form>
+{% if latest_period %}<h2>Período mais recente: {{ latest_period }}</h2>{% endif %}
+<table><thead><tr><th>Dimensão</th><th>OTIF</th><th>Meta</th><th>Fill rate</th><th>Perfect Order*</th><th>Backlog vencido</th><th>Custo estimado falha</th><th>Linhas</th></tr></thead><tbody>
+{% for r in latest %}<tr><td>{{ r.scope_label|default:r.scope_key }}</td><td>{{ r.otif_pct }}%</td><td>{% if r.target_otif_pct %}{{ r.target_otif_pct }}% {% if r.target_met %}✓{% else %}⚠{% endif %}{% else %}—{% endif %}</td><td>{{ r.fill_rate_pct }}%</td><td>{{ r.perfect_order_proxy_pct }}%</td><td>{{ r.overdue_backlog_quantity }}</td><td>{{ r.estimated_service_failure_cost }}</td><td>{{ r.lines }}</td></tr>{% empty %}<tr><td colspan="8">Gere snapshots mensais para visualizar os indicadores.</td></tr>{% endfor %}
+</tbody></table>
+<p><small>* Perfect Order é um proxy nesta versão: OTIF com entrega em uma única remessa. Acurácia documental, avaria e faturamento ainda não são modelados.</small></p>
+<h2>Tendência da planta</h2>
+<table><thead><tr><th>Período</th><th>OTIF</th><th>On-Time</th><th>In-Full</th><th>Fill rate</th><th>Custo estimado</th></tr></thead><tbody>{% for r in trend %}<tr><td>{{ r.period_start }}</td><td>{{ r.otif_pct }}%</td><td>{{ r.on_time_pct }}%</td><td>{{ r.in_full_pct }}%</td><td>{{ r.fill_rate_pct }}%</td><td>{{ r.estimated_service_failure_cost }}</td></tr>{% empty %}<tr><td colspan="6">Sem histórico.</td></tr>{% endfor %}</tbody></table>
+<h2>Metas vigentes</h2>
+<table><thead><tr><th>Escopo</th><th>Chave</th><th>OTIF</th><th>On-Time</th><th>In-Full</th><th>Fill rate</th></tr></thead><tbody>{% for t in targets %}<tr><td>{{ t.scope }}</td><td>{{ t.scope_label|default:t.scope_key|default:'Planta' }}</td><td>{{ t.otif_target_pct }}%</td><td>{{ t.on_time_target_pct }}%</td><td>{{ t.in_full_target_pct }}%</td><td>{{ t.fill_rate_target_pct }}%</td></tr>{% empty %}<tr><td colspan="6">Nenhuma meta cadastrada.</td></tr>{% endfor %}</tbody></table>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "shopfloor/base.html" %}
+{% block title %}{{ station.code }}{% endblock %}
+{% block body %}
+<div id="terminal-content" hx-get="{{ request.path }}" hx-trigger="every 10s" hx-target="#terminal-content" hx-swap="innerHTML">
+  {% include "shopfloor/partials/terminal_content.html" %}
+</div>
+{% endblock %}

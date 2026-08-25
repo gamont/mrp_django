@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block content %}
+<h1>Integridade das decisões MPS · 0.9.5</h1>
+<p>Visão consolidada da cadeia auditável e das âncoras externas exigidas por planta.</p>
+<div class="grid">
+  <div class="card"><strong>Protegidas</strong><div>{{ counts.PROTECTED }}</div></div>
+  <div class="card"><strong>Âncora vencida</strong><div>{{ counts.STALE }}</div></div>
+  <div class="card"><strong>Sem proteção</strong><div>{{ counts.UNPROTECTED }}</div></div>
+  <div class="card"><strong>Divergência</strong><div>{{ counts.MISMATCH }}</div></div>
+</div>
+<form method="post" action="{% url 'integrated-scheduling:mps-decision-integrity-run-policy-095' %}">{% csrf_token %}<button type="submit">Executar política agora</button></form>
+<table><thead><tr><th>Cockpit</th><th>Planta</th><th>Status plano</th><th>Proteção</th><th>Providers exigidos</th><th>Detalhe</th></tr></thead><tbody>
+{% for row in rows %}<tr>
+<td><a href="{% url 'integrated-scheduling:mps-decision-audit-093' row.cockpit.id %}">#{{ row.cockpit.id }}</a></td><td>{{ row.plant.code }}</td><td>{{ row.cockpit.status }}</td>
+<td><strong>{{ row.protection.status }}</strong></td><td>{{ row.policy.required_providers }}</td>
+<td>{% for p in row.protection.providers %}{{ p.provider }}={{ p.status }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
+</tr>{% empty %}<tr><td colspan="6">Nenhum cockpit para monitorar.</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}

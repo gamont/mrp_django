@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ incident.code }}{% endblock %}
+{% block content %}
+<h1>{{ incident.code }} · {{ incident.title }}</h1>
+<p><b>Severidade:</b> {{ incident.severity }} · <b>Status:</b> {{ incident.status }} · <b>Comandante:</b> {{ incident.commander|default:"—" }}</p>
+<p>{{ incident.summary }}</p>
+{% if incident.war_room_url %}<p><a href="{{ incident.war_room_url }}">Abrir war room</a></p>{% endif %}
+{% if incident.status != 'RESOLVED' and incident.status != 'CLOSED' %}<form method="post" action="{% url 'integrated-scheduling:mps-major-incident-resolve-099' incident.pk %}">{% csrf_token %}<button type="submit">Marcar resolvido</button></form>{% endif %}
+{% if incident.status == 'RESOLVED' %}<form method="post" action="{% url 'integrated-scheduling:mps-major-incident-close-099' incident.pk %}">{% csrf_token %}<button type="submit">Fechar formalmente</button></form>{% endif %}
+<h2>Timeline</h2><ul>{% for e in incident.timeline.all %}<li><b>{{ e.occurred_at }}</b> · {{ e.event_type }} · {{ e.message }}</li>{% empty %}<li>Sem eventos.</li>{% endfor %}</ul>
+<h2>Ações</h2><table><thead><tr><th>Tipo</th><th>Ação</th><th>Owner</th><th>Prazo</th><th>Status</th></tr></thead><tbody>{% for a in incident.actions.all %}<tr><td>{{ a.action_type }}</td><td>{{ a.title }}</td><td>{{ a.owner|default:"—" }}</td><td>{{ a.due_at|default:"—" }}</td><td>{{ a.status }}</td></tr>{% empty %}<tr><td colspan="5">Sem ações.</td></tr>{% endfor %}</tbody></table>
+<h2>Postmortem</h2>{% if postmortem %}<p><b>Status:</b> {{ postmortem.status }}</p><p><b>Causa raiz:</b> {{ postmortem.root_cause|default:"Ainda não registrada." }}</p><p><b>Lições:</b> {{ postmortem.lessons_learned|default:"—" }}</p>{% else %}<p>Ainda não criado.</p>{% endif %}
+{% endblock %}

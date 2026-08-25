@@ -1,0 +1,78 @@
+{% extends "ui/base.html" %}
+{% block title %}{{ scenario.name }}
+<div class="panel" style="margin-top:16px;padding:16px">
+  <h2>Solver CP-SAT 0.6.9</h2>
+  <p>Otimização global com modo não-preemptivo ou segmentável entre turnos, pausas, noites e fins de semana.</p>
+  <form method="post" action="{% url 'integrated-scheduling:solve-cp-sat' scenario.pk %}" class="inline-form">{% csrf_token %}
+    <label>Limite (s) <input type="number" name="time_limit" min="1" max="3600" value="30"></label>
+    <label>Workers <input type="number" name="workers" min="1" max="64" value="8"></label>
+    <label>Granularidade (min) <input type="number" name="granularity" min="1" max="60" value="5"></label>
+    <label>Gap relativo <input name="relative_gap_limit" value="0.02" title="0 = provar ótimo; 0.02 = parar com até 2% de gap"></label>
+    <label><input type="checkbox" name="warm_start" value="1" checked> Warm start heurístico</label>
+    <label><input type="checkbox" name="async_mode" value="1"> Executar assíncrono (Celery)</label>
+    <label><input type="checkbox" name="preemptive_operations" value="1"> Permitir operação segmentada</label>
+    <label><input type="checkbox" name="use_labor_constraints" value="1" checked> Restringir por mão de obra finita</label>
+    <label>Máx. consecutivo (min) <input type="number" name="max_consecutive_minutes" min="15" value="240"></label>
+    <label>Penalidade handoff <input type="number" name="handoff_penalty" min="0" value="5"></label>
+    <label>Peso atraso <input name="w_tardiness" value="100"></label>
+    <label>Peso prioridade <input name="w_priority_tardiness" value="150"></label>
+    <label>Peso makespan <input name="w_makespan" value="2"></label>
+    <label>Peso setup <input name="w_setup" value="10"></label>
+    <label>Peso recurso alternativo <input name="w_alternate" value="5"></label>
+    <button class="btn btn-primary">Resolver com CP-SAT</button> <a class="btn" href="{% url 'integrated-scheduling:solver-compare' scenario.pk %}">Comparar métodos</a>
+  </form>
+</div>
+{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>{{ scenario.name }}</h1><p>{{ scenario.plant.code }} · {{ scenario.horizon_start }} → {{ scenario.horizon_end }} · {{ scenario.get_scheduling_direction_display }} · {% if scenario.finite_by_machine %}finito por máquina{% else %}por centro{% endif %} · {% if scenario.respect_industrial_calendar %}calendário industrial{% else %}tempo contínuo{% endif %} · regra {{ scenario.dispatch_rule }}{% if scenario.campaign_mode %} · campanhas{% endif %}</p></div><div><a class="btn" href="{% url 'integrated-scheduling:compare' %}?scenario={{ scenario.pk }}">Comparar</a> <form method="post" action="{% url 'integrated-scheduling:simulate' scenario.pk %}" style="display:inline">{% csrf_token %}<button class="btn">Recalcular</button></form> <form method="post" action="{% url 'integrated-scheduling:apply' scenario.pk %}" style="display:inline">{% csrf_token %}<button class="btn btn-primary">Publicar cronograma</button></form></div></div>
+<div class="stats-grid"><div class="stat-card"><span>Setup sequência</span><strong>{{ scenario.simulated_summary.sequence_setup_hours|default:"0" }} h</strong></div><div class="stat-card"><span>Conflitos</span><strong>{{ scenario.simulated_summary.conflicts|default:0 }}</strong></div><div class="stat-card"><span>Críticos</span><strong>{{ scenario.simulated_summary.critical_conflicts|default:0 }}</strong></div><div class="stat-card"><span>Operações movidas</span><strong>{{ scenario.simulated_summary.shifted_operations|default:0 }}</strong></div><div class="stat-card"><span>Recursos alternativos</span><strong>{{ scenario.simulated_summary.alternate_resource_operations|default:0 }}</strong></div></div>
+<div class="panel"><h2>Gantt finito interativo</h2><p class="muted">Arraste uma barra produtiva horizontalmente para ajustar o horário. O movimento trava o bloco no cenário até nova edição.</p><div class="gantt-scale">Horizonte: {{ scenario.horizon_start }} → {{ scenario.horizon_end }}</div><div id="gantt-board" data-start="{{ scenario.horizon_start|date:'c' }}T00:00:00" data-days="{{ scenario.horizon_end|timeuntil:scenario.horizon_start }}">
+{% for center, blocks in centers.items %}<section class="gantt-lane"><h3>{{ center.code }} · {{ center.name }}</h3>{% for b in blocks %}<div class="gantt-row"><span class="gantt-label">{{ b.source_number }}{% if b.machine %} · {{ b.machine.code }}{% endif %}</span><div class="gantt-track"><div class="gantt-bar {% if b.block_type == 'MAINTENANCE' %}maint{% else %}prod{% endif %} {% if b.manually_locked %}locked{% endif %}" draggable="{% if b.block_type == 'PRODUCTION' %}true{% else %}false{% endif %}" data-block="{{ b.pk }}" data-url="{% url 'integrated-scheduling:move-block' scenario.pk b.pk %}" data-start="{{ b.simulated_start|date:'c' }}" data-end="{{ b.simulated_end|date:'c' }}" title="{{ b.description }} · {{ b.simulated_start }} → {{ b.simulated_end }}">{{ b.description }}</div></div></div>{% endfor %}</section>{% endfor %}</div></div>
+<div class="panel"><h2>Detalhes dos blocos</h2>{% for center, blocks in centers.items %}<h3>{{ center.code }} · {{ center.name }}</h3><div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Documento</th><th>Máquina</th><th>Início original</th><th>Início simulado</th><th>Fim</th><th>Família</th><th>Posição</th><th>Setup seq.</th><th>Atribuição</th><th>Atraso</th></tr></thead><tbody>{% for b in blocks %}<tr><td>{{ b.get_block_type_display }}</td><td>{{ b.source_number }}</td><td>{{ b.machine.code|default:"-" }}</td><td>{{ b.original_start }}</td><td>{{ b.simulated_start }}</td><td>{{ b.simulated_end }}</td><td>{{ b.details.product_family|default:"-" }}</td><td>{{ b.sequence_position|default:"-" }}</td><td>{{ b.sequence_setup_hours }} h</td><td>{{ b.assignment_reason|default:"-" }}</td><td>{{ b.late_hours }}</td></tr>{% endfor %}</tbody></table></div>{% endfor %}</div>
+<div class="panel"><h2>Conflitos</h2><div class="table-wrap"><table><thead><tr><th>Severidade</th><th>Tipo</th><th>Centro</th><th>Impacto</th></tr></thead><tbody>{% for c in conflicts %}<tr><td>{{ c.get_severity_display }}</td><td>{{ c.get_conflict_type_display }}</td><td>{{ c.work_center.code|default:"-" }}</td><td>{{ c.message }}</td></tr>{% empty %}<tr><td colspan="4">Nenhum conflito.</td></tr>{% endfor %}</tbody></table></div></div>
+<style>.gantt-row{display:grid;grid-template-columns:220px 1fr;gap:10px;align-items:center;margin:7px 0}.gantt-track{height:34px;background:rgba(127,127,127,.12);position:relative;overflow:hidden;border-radius:6px}.gantt-bar{height:28px;margin-top:3px;border-radius:5px;padding:5px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:grab;position:absolute;min-width:70px;background:#4c78a8;color:white}.gantt-bar.maint{background:#e45756;cursor:default}.gantt-bar.locked{outline:2px solid currentColor}.gantt-label{font-size:.9rem}.gantt-scale{margin-bottom:12px;color:var(--muted,#666)}</style>
+<script>
+(function(){const board=document.getElementById('gantt-board'); if(!board)return; const horizonStart=new Date('{{ scenario.horizon_start|date:"Y-m-d" }}T00:00:00'); const horizonEnd=new Date('{{ scenario.horizon_end|date:"Y-m-d" }}T23:59:59'); const total=horizonEnd-horizonStart; function render(){document.querySelectorAll('.gantt-bar').forEach(el=>{const s=new Date(el.dataset.start),e=new Date(el.dataset.end); el.style.left=Math.max(0,(s-horizonStart)/total*100)+'%'; el.style.width=Math.max(2,(e-s)/total*100)+'%';});} render(); document.querySelectorAll('.gantt-bar.prod').forEach(el=>{el.addEventListener('dragstart',ev=>{ev.dataTransfer.setData('text/plain',el.dataset.block); el.dataset.x=ev.clientX;}); el.closest('.gantt-track').addEventListener('dragover',ev=>ev.preventDefault()); el.closest('.gantt-track').addEventListener('drop',async ev=>{ev.preventDefault(); const rect=ev.currentTarget.getBoundingClientRect(); const ratio=Math.max(0,Math.min(1,(ev.clientX-rect.left)/rect.width)); const oldS=new Date(el.dataset.start),oldE=new Date(el.dataset.end),duration=oldE-oldS; const start=new Date(horizonStart.getTime()+ratio*total); start.setMinutes(Math.round(start.getMinutes()/15)*15,0,0); const end=new Date(start.getTime()+duration); const fd=new FormData(); fd.append('start',start.toISOString()); fd.append('end',end.toISOString()); fd.append('csrfmiddlewaretoken','{{ csrf_token }}'); const r=await fetch(el.dataset.url,{method:'POST',headers:{'HX-Request':'true'},body:fd}); if(r.ok){el.dataset.start=start.toISOString();el.dataset.end=end.toISOString();el.classList.add('locked');render();location.reload();} else {const j=await r.json();alert(j.detail||'Não foi possível mover o bloco.');}});});})();
+</script>
+
+{% if scenario.respect_industrial_calendar %}
+<div class="panel"><h2>Calendário industrial</h2><p>Segmentos: {{ scenario.simulated_summary.segments|default:0 }} · Hora extra efetiva: {{ scenario.simulated_summary.overtime_effective_hours|default:"0" }} h · Não programadas: {{ scenario.simulated_summary.unscheduled_operations|default:0 }}</p></div>
+{% endif %}
+<div class="panel" style="margin-top:16px;padding:16px">
+  <h2>Otimizador multicritério 0.6.4</h2>
+  <p>Gera cenários candidatos e minimiza atraso, setup, hora extra, atraso ponderado por prioridade, desequilíbrio de utilização e conflitos.</p>
+  <form method="post" action="{% url 'integrated-scheduling:optimize' scenario.pk %}" class="inline-form">{% csrf_token %}
+    <label>Candidatos <input type="number" name="candidate_count" min="2" max="12" value="8"></label>
+    <label>Peso atraso <input name="w_lateness" value="0.30"></label>
+    <label>Peso setup <input name="w_setup" value="0.20"></label>
+    <label>Peso hora extra <input name="w_overtime" value="0.15"></label>
+    <label>Peso prioridade <input name="w_priority" value="0.15"></label>
+    <label>Peso equilíbrio utilização <input name="w_utilization" value="0.10"></label>
+    <label>Peso conflitos <input name="w_conflicts" value="0.10"></label>
+    <button class="btn btn-primary">Gerar soluções candidatas</button>
+  </form>
+</div>
+
+<div class="panel" style="margin-top:16px;padding:16px">
+  <h2>Solver CP-SAT 0.6.9</h2>
+  <p>Otimização global por restrições com máquina + mão de obra + calendário, skills, turnos, descanso, manutenção, setups e datas de entrega.</p>
+  <form method="post" action="{% url 'integrated-scheduling:solve-cp-sat' scenario.pk %}" class="inline-form">{% csrf_token %}
+    <label>Limite (s) <input type="number" name="time_limit" min="1" max="3600" value="30"></label>
+    <label>Workers <input type="number" name="workers" min="1" max="64" value="8"></label>
+    <label>Granularidade (min) <input type="number" name="granularity" min="1" max="60" value="5"></label>
+    <label>Gap relativo <input name="relative_gap_limit" value="0.02" title="0 = provar ótimo; 0.02 = parar com até 2% de gap"></label>
+    <label><input type="checkbox" name="warm_start" value="1" checked> Warm start heurístico</label>
+    <label><input type="checkbox" name="async_mode" value="1"> Executar assíncrono (Celery)</label>
+    <label><input type="checkbox" name="preemptive_operations" value="1"> Permitir operação segmentada</label>
+    <label><input type="checkbox" name="use_labor_constraints" value="1" checked> Restringir por mão de obra finita</label>
+    <label>Máx. consecutivo (min) <input type="number" name="max_consecutive_minutes" min="15" value="240"></label>
+    <label>Penalidade handoff <input type="number" name="handoff_penalty" min="0" value="5"></label>
+    <label>Peso atraso <input name="w_tardiness" value="100"></label>
+    <label>Peso prioridade <input name="w_priority_tardiness" value="150"></label>
+    <label>Peso makespan <input name="w_makespan" value="2"></label>
+    <label>Peso setup <input name="w_setup" value="10"></label>
+    <label>Peso recurso alternativo <input name="w_alternate" value="5"></label>
+    <button class="btn btn-primary">Resolver com CP-SAT</button> <a class="btn" href="{% url 'integrated-scheduling:solver-compare' scenario.pk %}">Comparar métodos</a>
+  </form>
+</div>
+{% endblock %}

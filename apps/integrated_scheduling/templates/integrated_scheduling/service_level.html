@@ -1,0 +1,18 @@
+{% extends "ui/base.html" %}
+{% block content %}
+<h1>OTIF e nível de serviço</h1>
+<div class="kpi-grid">
+  <div class="card"><strong>OTIF</strong><div>{{ summary.otif_pct }}%</div></div>
+  <div class="card"><strong>On-Time</strong><div>{{ summary.on_time_pct }}%</div></div>
+  <div class="card"><strong>In-Full</strong><div>{{ summary.in_full_pct }}%</div></div>
+  <div class="card"><strong>Linhas</strong><div>{{ summary.lines }}</div></div>
+</div>
+<form method="get"><label>Referência</label><select name="reference" onchange="this.form.submit()">
+<option value="CUSTOMER_ACCEPTED" {% if reference == 'CUSTOMER_ACCEPTED' %}selected{% endif %}>Aceite do cliente</option>
+<option value="APPROVED_PROMISE" {% if reference == 'APPROVED_PROMISE' %}selected{% endif %}>Promessa aprovada</option>
+<option value="REQUESTED" {% if reference == 'REQUESTED' %}selected{% endif %}>Solicitada</option>
+</select></form>
+<table><thead><tr><th>Pedido</th><th>Cliente</th><th>Item</th><th>Qtd</th><th>Entregue</th><th>Referência</th><th>Entrega completa</th><th>OT</th><th>IF</th><th>OTIF</th><th>Causa</th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{ r.sales_order_line.sales_order.number }}/{{ r.sales_order_line.line_number }}</td><td>{{ r.sales_order_line.sales_order.customer_name }}</td><td>{{ r.sales_order_line.item.code }}</td><td>{{ r.ordered_quantity }}</td><td>{{ r.delivered_quantity }}</td><td>{{ r.reference_date }}</td><td>{{ r.full_delivery_date|default:'—' }}</td><td>{{ r.on_time|yesno:'Sim,Não' }}</td><td>{{ r.in_full|yesno:'Sim,Não' }}</td><td>{{ r.otif|yesno:'Sim,Não' }}</td><td>{{ r.primary_cause|default:'—' }}</td></tr>{% empty %}<tr><td colspan="11">Execute evaluate_otif para gerar resultados.</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}

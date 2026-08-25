@@ -1,0 +1,18 @@
+{% extends "maintenance/base.html" %}
+{% block content %}
+<section class="m-toolbar"><div><h1>Backlog / Kanban de manutenção</h1><p>{{ plant.code }} · priorização por criticidade, SLA e impacto no OEE</p></div><div><a href="{% url 'maintenance:advanced-planner' %}">Planejador avançado</a></div></section>
+<div class="m-kanban">
+{% for status, col in columns.items %}
+<section class="m-kanban-col"><h2>{{ col.label }} <span>{{ col.orders|length }}</span></h2>
+{% for wo in col.orders %}
+<article class="m-kanban-card">
+<a href="{% url 'maintenance:work-order-detail' wo.pk %}"><b>{{ wo.number }}</b></a>
+<span>{{ wo.asset.code }} · {{ wo.title }}</span>
+<small>{{ wo.get_priority_display }} · score {{ wo.priority_score }}</small>
+{% if wo.scheduled_start %}<small>{{ wo.scheduled_start|date:"d/m H:i" }}</small>{% endif %}
+</article>
+{% empty %}<p class="m-muted">Sem ordens.</p>{% endfor %}
+</section>
+{% endfor %}
+</div>
+{% endblock %}

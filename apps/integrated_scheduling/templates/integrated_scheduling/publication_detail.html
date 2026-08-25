@@ -1,0 +1,8 @@
+{% extends "ui/base.html" %}
+{% block content %}
+<div class="page-header"><div><h1>{{ publication.plant.code }} · cronograma v{{ publication.version }}</h1><p>{{ publication.get_status_display }} · publicado em {{ publication.published_at }}</p></div><a class="button" href="?sync=1">Sincronizar realizado</a></div>
+<div class="cards"><div class="card"><strong>{{ pav.completed }}/{{ pav.total }}</strong><span>operações concluídas</span></div><div class="card"><strong>{{ pav.avg_start_variance_minutes|default:"—" }}</strong><span>desvio médio início (min)</span></div><div class="card"><strong>{{ pav.avg_finish_variance_minutes|default:"—" }}</strong><span>desvio médio fim (min)</span></div></div>
+<div class="card"><h3>Planejado × realizado</h3><table><thead><tr><th>OP</th><th>Operação</th><th>Máquina</th><th>Planejado</th><th>Real</th><th>Frozen</th><th>Status</th></tr></thead><tbody>
+{% for s in slots %}<tr><td>{{ s.operation.work_order.number }}</td><td>{{ s.operation.sequence }} · {{ s.operation.description }}</td><td>{{ s.machine|default:"—" }}</td><td>{{ s.planned_start }} → {{ s.planned_end }}</td><td>{{ s.actual_start|default:"—" }} → {{ s.actual_end|default:"—" }}</td><td>{% if s.frozen %}Sim{% else %}Não{% endif %}</td><td>{{ s.get_status_display }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

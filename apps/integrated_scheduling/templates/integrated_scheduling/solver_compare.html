@@ -1,0 +1,7 @@
+{% extends "ui/base.html" %}
+{% block title %}Comparar métodos{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Comparação de programação</h1><p>{{ scenario.name }} · heurístico × CP-SAT × publicado</p></div><a class="btn" href="{% url 'integrated-scheduling:detail' scenario.pk %}">Voltar</a></div>
+<div class="panel"><div class="table-wrap"><table><thead><tr><th>Método</th><th>Status</th><th>Score/objetivo</th><th>Atraso</th><th>Setup</th><th>Hora extra</th><th>Conflitos</th></tr></thead><tbody>{% for r in rows %}<tr><td><strong>{{ r.label }}</strong></td><td>{{ r.status }}</td><td>{{ r.score }}</td><td>{{ r.tardiness_minutes }}</td><td>{{ r.setup_hours }}</td><td>{{ r.overtime_hours }}</td><td>{{ r.conflicts }}</td></tr>{% empty %}<tr><td colspan="7">Ainda não há resultados comparáveis para este cenário.</td></tr>{% endfor %}</tbody></table></div></div>
+<p class="muted">Os números preservam as métricas disponíveis em cada motor. Campos sem equivalente direto aparecem como “-”.</p>
+{% endblock %}

@@ -1,0 +1,72 @@
+<header class="sf-header">
+  <div><div><span class="sf-kicker">Melhoria contínua</span><strong>Histórico OEE · {{ plant.code }}</strong></div></div>
+  <div class="sf-header-actions">
+    <a class="sf-btn ghost" href="{% url 'shopfloor:andon' %}?plant={{ plant.pk }}">Andon</a>
+    <a class="sf-btn ghost" href="{% url 'shopfloor:stations' %}">Estações</a>
+  </div>
+</header>
+<main class="sf-terminal-main sf-history-main">
+  <form class="sf-history-filter" method="get" action="{% url 'shopfloor:oee-history' %}">
+    <label>Planta<select name="plant" class="sf-select-inline">{% for p in plants %}<option value="{{ p.pk }}" {% if p.pk == plant.pk %}selected{% endif %}>{{ p.code }} · {{ p.name }}</option>{% endfor %}</select></label>
+    <label>Máquina<select name="machine" class="sf-select-inline"><option value="">Todas</option>{% for m in machines %}<option value="{{ m.pk }}" {% if selected_machine.pk == m.pk %}selected{% endif %}>{{ m.work_center.code }} · {{ m.code }}</option>{% endfor %}</select></label>
+    <label>De<input class="sf-select-inline" type="date" name="from" value="{{ date_from|date:'Y-m-d' }}"></label>
+    <label>Até<input class="sf-select-inline" type="date" name="to" value="{{ date_to|date:'Y-m-d' }}"></label>
+    <button class="sf-btn primary">Aplicar</button>
+  </form>
+
+  <section class="sf-kpi-grid">
+    <article><span>OEE período</span><strong>{{ overall.oee_pct|floatformat:1 }}%</strong></article>
+    <article><span>Disponibilidade</span><strong>{{ overall.availability_pct|floatformat:1 }}%</strong></article>
+    <article><span>Performance</span><strong>{{ overall.performance_pct|floatformat:1 }}%</strong></article>
+    <article><span>Qualidade</span><strong>{{ overall.quality_pct|floatformat:1 }}%</strong></article>
+    <article><span>Paradas</span><strong>{{ overall.downtime_minutes|floatformat:0 }} min</strong></article>
+    <article><span>Produção boa</span><strong>{{ overall.good_quantity|floatformat:0 }}</strong></article>
+  </section>
+
+  <section class="sf-panel sf-history-panel">
+    <div class="sf-panel-title"><div><span class="sf-kicker">Tendência</span><h2>OEE diário</h2></div><small>{{ date_from|date:'d/m/Y' }} – {{ date_to|date:'d/m/Y' }}</small></div>
+    <div class="sf-trend-chart">
+      {% for row in trend %}
+      <div class="sf-trend-column" title="{{ row.date|date:'d/m' }} · OEE {{ row.oee_pct|floatformat:1 }}%">
+        <div class="sf-trend-bar"><i style="height:{{ row.oee_pct|floatformat:0 }}%"></i></div>
+        <strong>{{ row.oee_pct|floatformat:0 }}%</strong><span>{{ row.date|date:'d/m' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="sf-history-grid">
+    <article class="sf-panel">
+      <div class="sf-panel-title"><div><span class="sf-kicker">Seis grandes perdas</span><h2>Perdas equivalentes</h2></div></div>
+      <div class="sf-loss-cards">
+        <div><span>Disponibilidade</span><strong>{{ overall.availability_loss_minutes|floatformat:0 }} min</strong><small>Paradas durante tempo planejado</small></div>
+        <div><span>Performance</span><strong>{{ overall.performance_loss_minutes|floatformat:0 }} min</strong><small>Velocidade abaixo do ciclo ideal</small></div>
+        <div><span>Qualidade</span><strong>{{ overall.quality_loss_minutes|floatformat:0 }} min</strong><small>Tempo ideal equivalente do refugo</small></div>
+      </div>
+    </article>
+    <article class="sf-panel">
+      <div class="sf-panel-title"><div><span class="sf-kicker">Pareto</span><h2>Motivos de parada</h2></div><strong>{{ pareto.total_minutes|floatformat:0 }} min</strong></div>
+      <div class="sf-pareto">
+        {% for row in pareto.rows %}
+        <div class="sf-pareto-row"><div><strong>{{ row.reason.code }}</strong><span>{{ row.reason.description }}</span></div><div class="sf-pareto-bar"><i style="width:{{ row.share_pct|floatformat:0 }}%"></i></div><strong>{{ row.minutes|floatformat:0 }} min</strong><small>{{ row.share_pct|floatformat:1 }}%</small></div>
+        {% empty %}<div class="sf-empty">Sem paradas no intervalo.</div>{% endfor %}
+      </div>
+    </article>
+  </section>
+
+  <section class="sf-panel sf-history-panel">
+    <div class="sf-panel-title"><div><span class="sf-kicker">Metas</span><h2>Resultado por máquina</h2></div></div>
+    <div class="sf-table-wrap"><table><thead><tr><th>Centro</th><th>Máquina</th><th>OEE</th><th>Meta</th><th>Dispon.</th><th>Perf.</th><th>Qual.</th><th>Perda disp.</th><th>Perda perf.</th><th>Perda qual.</th></tr></thead><tbody>
+      {% for row in machines_summary %}<tr><td>{{ row.machine.work_center.code }}</td><td><strong>{{ row.machine.code }}</strong></td><td>{{ row.oee_pct|floatformat:1 }}%</td><td>{% if row.target %}{{ row.target_oee_pct|floatformat:1 }}%{% else %}—{% endif %}</td><td>{{ row.availability_pct|floatformat:1 }}%</td><td>{{ row.performance_pct|floatformat:1 }}%</td><td>{{ row.quality_pct|floatformat:1 }}%</td><td>{{ row.availability_loss_minutes|floatformat:0 }} min</td><td>{{ row.performance_loss_minutes|floatformat:0 }} min</td><td>{{ row.quality_loss_minutes|floatformat:0 }} min</td></tr>
+      {% empty %}<tr><td colspan="10" class="sf-empty">Sem snapshots para o intervalo.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
+  <section class="sf-panel sf-history-panel">
+    <div class="sf-panel-title"><div><span class="sf-kicker">Turnos</span><h2>OEE por turno</h2></div><small>Snapshots persistidos</small></div>
+    <div class="sf-table-wrap"><table><thead><tr><th>Data</th><th>Turno</th><th>Máquina</th><th>OEE</th><th>A</th><th>P</th><th>Q</th><th>Boas</th><th>Refugo</th><th>Parada</th><th>MTBF</th><th>MTTR</th></tr></thead><tbody>
+      {% for s in shift_rows %}<tr><td>{{ s.metric_date|date:'d/m/Y' }}</td><td>{{ s.shift.name }}</td><td>{{ s.machine.code }}</td><td><strong>{{ s.oee_pct|floatformat:1 }}%</strong></td><td>{{ s.availability_pct|floatformat:1 }}%</td><td>{{ s.performance_pct|floatformat:1 }}%</td><td>{{ s.quality_pct|floatformat:1 }}%</td><td>{{ s.good_quantity|floatformat:0 }}</td><td>{{ s.scrap_quantity|floatformat:0 }}</td><td>{{ s.downtime_minutes|floatformat:0 }} min</td><td>{{ s.mtbf_minutes|floatformat:0 }} min</td><td>{{ s.mttr_minutes|floatformat:0 }} min</td></tr>
+      {% empty %}<tr><td colspan="12" class="sf-empty">Execute calculate_oee --include-shifts ou calculate_oee_history para gerar snapshots por turno.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+</main>

@@ -1,0 +1,9 @@
+{% extends "ui/base.html" %}
+{% block content %}
+<h1>Recovery Control Center</h1>
+<p>Fila de rupturas, impacto, severidade, ETA e planos de recuperação.</p>
+{% if policy %}<div class="card"><strong>Auto-publicação:</strong> {% if policy.auto_publish_enabled %}ativa{% else %}desativada{% endif %} · candidatos {{ policy.candidate_count }} · risco máximo {{ policy.max_risk_score }}</div>{% endif %}
+<table class="table"><thead><tr><th>ID</th><th>Evento</th><th>Severidade</th><th>Status</th><th>Impacto</th><th>ETA</th><th>Planos</th></tr></thead><tbody>
+{% for t in triggers %}<tr><td><a href="{% url 'integrated-scheduling:recovery-control-detail' t.pk %}">#{{ t.pk }}</a></td><td>{{ t.get_trigger_type_display }}</td><td><strong>{{ t.severity }}</strong></td><td>{{ t.status }}</td><td>{{ t.impact_summary.affected_work_orders|default:0 }} OPs · {{ t.impact_summary.impacted_sales_orders|default:0 }} pedidos</td><td>{{ t.recovery_eta_seconds }} s</td><td>{{ t.recovery_plans.count }}</td></tr>{% empty %}<tr><td colspan="7">Sem rupturas.</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}

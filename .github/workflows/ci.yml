@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: mrp_test
+          POSTGRES_USER: mrp
+          POSTGRES_PASSWORD: mrp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U mrp -d mrp_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+
+    env:
+      DJANGO_DEBUG: "0"
+      DJANGO_SECRET_KEY: ci-only-secret-key
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: mrp_test
+      POSTGRES_USER: mrp
+      POSTGRES_PASSWORD: mrp
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      POSTGRES_STATEMENT_TIMEOUT_MS: "30000"
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CELERY_BROKER_URL: redis://127.0.0.1:6379/0
+      CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/1
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Static compilation
+        run: python -m compileall -q apps config tests
+      - name: Static release consistency
+        run: python scripts/release_consistency.py
+      - name: Static migration graph lint
+        run: python scripts/migration_lint.py
+      - name: Static release/compose gate lints
+        run: |
+          python scripts/compose_lint.py
+          python scripts/postgres_volume_lint.py
+          python scripts/release_gate_lint.py
+          python scripts/security_profile_lint.py
+      - name: Lint
+        run: ruff check .
+      - name: Django checks
+        run: python manage.py check
+      - name: Verify committed migrations
+        run: python manage.py makemigrations --check --dry-run
+      - name: Apply migrations
+        run: python manage.py migrate --noinput
+      - name: Consolidated system check
+        run: python manage.py system_check
+      - name: Sync roles
+        run: python manage.py bootstrap_roles
+      - name: Tests with coverage
+        run: |
+          coverage run -m pytest
+          coverage report

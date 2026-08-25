@@ -1,0 +1,45 @@
+{% extends "ui/base.html" %}{% block title %}MRP what-if r{{ sim.revision.number }}{% endblock %}{% block content %}
+<h1>MRP + financeiro what-if · r{{ sim.revision.number }} × r{{ sim.compare_revision.number }}</h1>
+<p>Status: <b>{{ sim.status }}</b> · alvo PlanningRun #{{ sim.target_planning_run_id|default:'—' }} · comparação #{{ sim.compare_planning_run_id|default:'—' }}</p>
+<p>A simulação executa o netting MRP sobre snapshots das revisões. Ela cria recomendações planejadas e uma estimativa financeira; <b>não cria OCs, OPs, lançamentos contábeis ou movimentos de caixa.</b></p>
+<h2>Resumo MRP</h2>
+<table><thead><tr><th></th><th>r{{ sim.compare_revision.number }}</th><th>r{{ sim.revision.number }}</th></tr></thead><tbody>
+<tr><td>Planned orders</td><td>{{ sim.summary.compare.planned_orders }}</td><td>{{ sim.summary.target.planned_orders }}</td></tr>
+<tr><td>MAKE</td><td>{{ sim.summary.compare.make }}</td><td>{{ sim.summary.target.make }}</td></tr>
+<tr><td>PURCHASE</td><td>{{ sim.summary.compare.purchase }}</td><td>{{ sim.summary.target.purchase }}</td></tr>
+<tr><td>Mensagens</td><td>{{ sim.summary.compare.messages }}</td><td>{{ sim.summary.target.messages }}</td></tr>
+<tr><td>Pegging</td><td>{{ sim.summary.compare.pegging_records }}</td><td>{{ sim.summary.target.pegging_records }}</td></tr>
+</tbody></table>
+<h2>Impacto financeiro estimado</h2>
+<p>Status de cobertura: <b>{{ sim.financial_summary.status|default:'UNAVAILABLE' }}</b> · versão de custo: <b>{{ sim.financial_summary.cost_version_code|default:'—' }}</b> · cobertura de itens: {{ sim.financial_summary.valuation_item_coverage_pct|default:'0' }}%</p>
+<table><thead><tr><th>Categoria</th><th>r{{ sim.compare_revision.number }}</th><th>r{{ sim.revision.number }}</th><th>Delta</th></tr></thead><tbody>
+{% for category, total in sim.financial_summary.totals.items %}<tr><td>{{ category }}</td><td>{{ total.left }}</td><td>{{ total.right }}</td><td>{{ total.delta }}</td></tr>{% empty %}<tr><td colspan="4">Sem avaliação financeira disponível.</td></tr>{% endfor %}
+</tbody></table>
+{% if sim.financial_summary.unvalued_target_quantities %}<p><b>Atenção:</b> existem quantidades sem valoração: {{ sim.financial_summary.unvalued_target_quantities }}</p>{% endif %}
+<p><small>{{ sim.financial_summary.warning }}</small></p>
+<h2>Cash-flow temporal · 0.8.5</h2>
+<p>Bucket: <b>{{ sim.financial_summary.cashflow_085.bucket_type|default:'—' }}</b> · Budget: <b>{{ sim.financial_summary.cashflow_085.budget_code|default:'sem budget aprovado' }}</b>. Valores são projeções de planejamento, não tesouraria/contas a pagar.</p>
+<table><thead><tr><th>Bucket</th><th>Categoria</th><th>Baseline</th><th>Revisão</th><th>Delta</th><th>Budget</th><th>Var. budget</th></tr></thead><tbody>
+{% for d in cashflow %}<tr><td>{{ d.bucket_date }}</td><td>{{ d.category }}</td><td>{{ d.left_value }}</td><td>{{ d.right_value }}</td><td>{{ d.delta_value }}</td><td>{{ d.budget_value|default:'—' }}</td><td>{{ d.variance_to_budget|default:'—' }}</td></tr>{% empty %}<tr><td colspan="7">Sem buckets temporais. Reexecute a simulação ou use build_mps_cashflow_whatif.</td></tr>{% endfor %}
+</tbody></table>
+<h2>Capital de giro · 0.8.6</h2>
+<p>Pico NCG baseline: <b>{{ sim.financial_summary.working_capital_086.peak_working_capital_need.left|default:'—' }}</b> · revisão: <b>{{ sim.financial_summary.working_capital_086.peak_working_capital_need.right|default:'—' }}</b> · delta: <b>{{ sim.financial_summary.working_capital_086.peak_working_capital_need.delta|default:'—' }}</b>.</p>
+<p>DSO proxy: {{ sim.financial_summary.working_capital_086.dso_days_proxy|default:'—' }} dias · DPO baseline/revisão: {{ sim.financial_summary.working_capital_086.dpo_days_proxy.left|default:'—' }}/{{ sim.financial_summary.working_capital_086.dpo_days_proxy.right|default:'—' }} · CCC baseline/revisão: {{ sim.financial_summary.working_capital_086.cash_conversion_cycle_proxy.left|default:'—' }}/{{ sim.financial_summary.working_capital_086.cash_conversion_cycle_proxy.right|default:'—' }} dias.</p>
+<table><thead><tr><th>Bucket</th><th>Entradas</th><th>Saída baseline</th><th>Saída revisão</th><th>Caixa acum. baseline</th><th>Caixa acum. revisão</th><th>NCG baseline</th><th>NCG revisão</th><th>AR</th><th>AP baseline/rev.</th><th>Estoque baseline/rev.</th></tr></thead><tbody>
+{% for d in working_capital %}<tr><td>{{ d.bucket_date }}</td><td>{{ d.right_cash_inflow }}</td><td>{{ d.left_cash_outflow }}</td><td>{{ d.right_cash_outflow }}</td><td>{{ d.left_cumulative_cash }}</td><td>{{ d.right_cumulative_cash }}</td><td>{{ d.left_working_capital_need }}</td><td>{{ d.right_working_capital_need }}</td><td>{{ d.right_ar_outstanding }}</td><td>{{ d.left_ap_outstanding }} / {{ d.right_ap_outstanding }}</td><td>{{ d.left_inventory_value }} / {{ d.right_inventory_value }}</td></tr>{% empty %}<tr><td colspan="11">Sem projeção de capital de giro.</td></tr>{% endfor %}
+</tbody></table>
+<p><small>{{ sim.financial_summary.working_capital_086.warning }}</small></p>
+
+<h2>Impacto RCCP</h2><pre>{{ sim.diff_summary.rccp }}</pre>
+{% for name, rows in financial_groups.items %}<h3>Financeiro · {{ name }}</h3><table><thead><tr><th>Item</th><th>Antes</th><th>Depois</th><th>Delta</th><th>Base</th></tr></thead><tbody>{% for d in rows %}<tr><td>{{ d.item.code|default:'—' }}</td><td>{{ d.left_value }}</td><td>{{ d.right_value }}</td><td>{{ d.delta_value }}</td><td><small>{{ d.details }}</small></td></tr>{% empty %}<tr><td colspan="5">Sem diferenças/valores.</td></tr>{% endfor %}</tbody></table>{% endfor %}
+{% for name, rows in groups.items %}<h2>MRP · {{ name }}</h2><table><thead><tr><th>Item</th><th>Data</th><th>Antes</th><th>Depois</th><th>Delta</th><th>Detalhes</th></tr></thead><tbody>{% for d in rows %}<tr><td>{{ d.item.code|default:'—' }}</td><td>{{ d.event_date|default:'—' }}</td><td>{{ d.left_quantity }}</td><td>{{ d.right_quantity }}</td><td>{{ d.delta_quantity }}</td><td><small>{{ d.details }}</small></td></tr>{% empty %}<tr><td colspan="6">Sem diferenças.</td></tr>{% endfor %}</tbody></table>{% endfor %}
+<p><a class="btn" href="{% url 'integrated-scheduling:operational-mps-detail' pub.pk %}">Voltar ao MPS</a></p>
+{% endblock %}
+
+<h3>Financiamento · 0.8.7</h3>
+<p>Limite utilizável: <b>{{ sim.financial_summary.financing_087.usable_credit_limit|default:'—' }}</b> · Pico revisão: <b>{{ sim.financial_summary.financing_087.peak_draw.right|default:'—' }}</b> · Juros estimados revisão: <b>{{ sim.financial_summary.financing_087.interest_cost.right|default:'—' }}</b> · Necessidade não coberta: <b>{{ sim.financial_summary.financing_087.peak_uncovered_need.right|default:'—' }}</b>.</p>
+<p>Viabilidade financeira da revisão: <b>{{ sim.financial_summary.financing_087.financially_feasible.right|default:'—' }}</b></p>
+<table><thead><tr><th>Bucket</th><th>Necessidade</th><th>Financiamento</th><th>Crédito disponível</th><th>Não coberto</th><th>Juros</th></tr></thead><tbody>
+{% for d in financing %}<tr><td>{{ d.bucket_date }}</td><td>{{ d.right_required_financing }}</td><td>{{ d.right_financing_outstanding }}</td><td>{{ d.right_available_credit }}</td><td>{{ d.right_uncovered_need }}</td><td>{{ d.right_interest_expense }}</td></tr>{% empty %}<tr><td colspan="6">Sem projeção de financiamento.</td></tr>{% endfor %}
+</tbody></table>
+<p><small>{{ sim.financial_summary.financing_087.warning }}</small></p>

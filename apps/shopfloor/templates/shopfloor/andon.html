@@ -1,0 +1,7 @@
+{% extends "shopfloor/base.html" %}
+{% block title %}Andon{% endblock %}
+{% block body %}
+<div id="andon-content" hx-get="{% url 'shopfloor:andon' %}?plant={{ plant.pk }}" hx-trigger="every 15s" hx-target="this" hx-swap="innerHTML">
+  {% include "shopfloor/partials/andon_content.html" %}
+</div>
+{% endblock %}

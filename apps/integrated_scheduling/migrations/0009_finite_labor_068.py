@@ -1,0 +1,130 @@
+from django.conf import settings
+from django.db import migrations, models
+import django.db.models.deletion
+
+
+class Migration(migrations.Migration):
+    dependencies = [
+        ("integrated_scheduling", "0008_preemptive_cp_sat_067"),
+        ("shopfloor", "0003_oee_shift_targets_history"),
+        ("maintenance", "0003_advanced_scheduling"),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name="LaborSkill",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("code", models.CharField(max_length=40)),
+                ("name", models.CharField(max_length=120)),
+                ("is_active", models.BooleanField(default=True)),
+                ("plant", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="labor_skills", to="common.plant")),
+            ],
+            options={"ordering": ["plant__code", "code"]},
+        ),
+        migrations.AddConstraint(model_name="laborskill", constraint=models.UniqueConstraint(fields=("plant", "code"), name="uq_labor_skill_plant_code")),
+        migrations.CreateModel(
+            name="LaborResource",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("employee_code", models.CharField(max_length=40)),
+                ("name", models.CharField(max_length=120)),
+                ("resource_type", models.CharField(choices=[("OPERATOR", "Operador"), ("TECHNICIAN", "Técnico")], default="OPERATOR", max_length=16)),
+                ("min_rest_hours", models.DecimalField(decimal_places=2, default=0, max_digits=6)),
+                ("is_active", models.BooleanField(default=True)),
+                ("operator_profile", models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="finite_labor_resource", to="shopfloor.operatorprofile")),
+                ("plant", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="labor_resources", to="common.plant")),
+                ("technician_profile", models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="finite_labor_resource", to="maintenance.technicianprofile")),
+                ("user", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="finite_labor_resources", to=settings.AUTH_USER_MODEL)),
+            ],
+            options={"ordering": ["plant__code", "employee_code"]},
+        ),
+        migrations.AddConstraint(model_name="laborresource", constraint=models.UniqueConstraint(fields=("plant", "employee_code"), name="uq_labor_resource_plant_code")),
+        migrations.AddConstraint(model_name="laborresource", constraint=models.CheckConstraint(condition=models.Q(("min_rest_hours__gte", 0)), name="ck_labor_rest_nonneg")),
+        migrations.CreateModel(
+            name="LaborResourceSkill",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("proficiency", models.PositiveSmallIntegerField(default=1)),
+                ("valid_until", models.DateField(blank=True, null=True)),
+                ("labor_resource", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="skills", to="integrated_scheduling.laborresource")),
+                ("skill", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="resource_skills", to="integrated_scheduling.laborskill")),
+            ],
+        ),
+        migrations.AddConstraint(model_name="laborresourceskill", constraint=models.UniqueConstraint(fields=("labor_resource", "skill"), name="uq_labor_resource_skill")),
+        migrations.AddConstraint(model_name="laborresourceskill", constraint=models.CheckConstraint(condition=models.Q(("proficiency__gte", 1), ("proficiency__lte", 5)), name="ck_labor_prof_1_5")),
+        migrations.CreateModel(
+            name="LaborShiftAssignment",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("effective_from", models.DateField(blank=True, null=True)),
+                ("effective_to", models.DateField(blank=True, null=True)),
+                ("is_active", models.BooleanField(default=True)),
+                ("labor_resource", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="shift_assignments", to="integrated_scheduling.laborresource")),
+                ("shift", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="labor_assignments", to="masterdata.workcentershift")),
+            ],
+        ),
+        migrations.AddConstraint(model_name="laborshiftassignment", constraint=models.UniqueConstraint(fields=("labor_resource", "shift", "effective_from"), name="uq_labor_shift_effective")),
+        migrations.AddConstraint(model_name="laborshiftassignment", constraint=models.CheckConstraint(condition=models.Q(effective_to__isnull=True) | models.Q(effective_from__isnull=True) | models.Q(effective_to__gte=models.F("effective_from")), name="ck_labor_shift_dates")),
+        migrations.CreateModel(
+            name="LaborUnavailability",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("start", models.DateTimeField()),
+                ("end", models.DateTimeField()),
+                ("reason", models.CharField(blank=True, max_length=160)),
+                ("labor_resource", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="unavailability", to="integrated_scheduling.laborresource")),
+            ],
+            options={"ordering": ["start"]},
+        ),
+        migrations.AddConstraint(model_name="laborunavailability", constraint=models.CheckConstraint(condition=models.Q(("end__gt", models.F("start"))), name="ck_labor_unavailability_window")),
+        migrations.CreateModel(
+            name="OperationLaborRequirement",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("min_workers", models.PositiveSmallIntegerField(default=1)),
+                ("min_proficiency", models.PositiveSmallIntegerField(default=1)),
+                ("allow_shift_handoff", models.BooleanField(default=True)),
+                ("operation", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="labor_requirements", to="production.workorderoperation")),
+                ("skill", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="operation_requirements", to="integrated_scheduling.laborskill")),
+            ],
+        ),
+        migrations.AddConstraint(model_name="operationlaborrequirement", constraint=models.UniqueConstraint(fields=("operation", "skill"), name="uq_operation_labor_skill")),
+        migrations.AddConstraint(model_name="operationlaborrequirement", constraint=models.CheckConstraint(condition=models.Q(("min_workers__gte", 1)), name="ck_operation_labor_workers_pos")),
+        migrations.AddConstraint(model_name="operationlaborrequirement", constraint=models.CheckConstraint(condition=models.Q(("min_proficiency__gte", 1), ("min_proficiency__lte", 5)), name="ck_operation_labor_prof_1_5")),
+        migrations.AddField(model_name="schedulesolverrun", name="use_labor_constraints", field=models.BooleanField(default=True)),
+        migrations.CreateModel(
+            name="ScheduleSolverLaborAssignment",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("start", models.DateTimeField()),
+                ("end", models.DateTimeField()),
+                ("shift_name", models.CharField(blank=True, max_length=60)),
+                ("is_handoff", models.BooleanField(default=False)),
+                ("assignment", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="labor_assignments", to="integrated_scheduling.schedulesolverassignment")),
+                ("labor_resource", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="solver_assignments", to="integrated_scheduling.laborresource")),
+                ("operation", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="solver_labor_assignments", to="production.workorderoperation")),
+                ("run", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="labor_assignments", to="integrated_scheduling.schedulesolverrun")),
+                ("segment", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name="labor_assignments", to="integrated_scheduling.schedulesolversegment")),
+                ("skill", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="solver_assignments", to="integrated_scheduling.laborskill")),
+            ],
+            options={"ordering": ["start", "labor_resource__employee_code"]},
+        ),
+        migrations.AddConstraint(model_name="schedulesolverlaborassignment", constraint=models.CheckConstraint(condition=models.Q(("end__gt", models.F("start"))), name="ck_solver_labor_window")),
+        migrations.AddIndex(model_name="schedulesolverlaborassignment", index=models.Index(fields=["run", "labor_resource", "start"], name="ix_solver_labor_run_time")),
+    ]

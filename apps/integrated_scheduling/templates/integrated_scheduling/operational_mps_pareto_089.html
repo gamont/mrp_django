@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Fronteira Pareto do MPS · 0.8.9</h1>
+<p><b>Run #{{ run.id }}</b> · revisão r{{ run.revision.number }} × r{{ run.compare_revision.number }} · {{ run.status }}</p>
+<p>O CP-SAT gera distribuições candidatas; cada uma é avaliada pelo pipeline completo MRP/RCCP/financeiro. “Risco serviço” é proxy prospectivo, não OTIF realizado.</p>
+<table class="table"><thead><tr><th>Rank</th><th>Pareto</th><th>Candidato</th><th>Risco serviço</th><th>RCCP h</th><th>Financ. descoberto</th><th>Juros</th><th>Estoque</th><th>Compras</th><th>Ação</th></tr></thead><tbody>
+{% for c in candidates %}<tr><td>#{{ c.rank }}</td><td>{% if c.is_pareto %}★ Frente 1{% else %}F{{ c.pareto_rank }}{% endif %}</td><td>{{ c.name }}</td><td>{{ c.objective_vector.service_risk_proxy }}</td><td>{{ c.objective_vector.rccp_overload_hours }}</td><td>{{ c.objective_vector.peak_uncovered_financing }}</td><td>{{ c.objective_vector.interest_cost }}</td><td>{{ c.objective_vector.inventory_exposure }}</td><td>{{ c.objective_vector.purchase_spend }}</td><td>{% if c.planning_overrides.candidate_mps_lines %}<form method="post" action="{% url 'integrated-scheduling:operational-mps-optimizer-adopt-088' pub.id c.id %}">{% csrf_token %}<button>Adotar como revisão</button></form>{% endif %}</td></tr>{% empty %}<tr><td colspan="10">Nenhum candidato.</td></tr>{% endfor %}
+</tbody></table>
+<p><a href="{% url 'integrated-scheduling:mps-decision-cockpit-dashboard-090' %}">Abrir cockpit executivo 0.9.0</a></p>
+<pre>{{ run.summary }}</pre>
+{% endblock %}

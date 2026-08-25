@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% block content %}
+<h1>Security & Compliance Center · MPS 0.9.6</h1><a class="btn btn-outline-secondary btn-sm" href="{% url 'integrated-scheduling:mps-compliance-escalation-center-097' %}">Escalation 0.9.7</a>
+<p>SLA de auditoria, integridade externa, evidências periódicas e incidentes das decisões MPS.</p>
+<div class="grid">
+  <div class="card"><strong>Protegidas</strong><div>{{ counts.PROTECTED }}</div></div>
+  <div class="card"><strong>Âncora vencida</strong><div>{{ counts.STALE }}</div></div>
+  <div class="card"><strong>Sem proteção</strong><div>{{ counts.UNPROTECTED }}</div></div>
+  <div class="card"><strong>Divergência</strong><div>{{ counts.MISMATCH }}</div></div>
+  <div class="card"><strong>Incidentes abertos</strong><div>{{ incident_counts.OPEN }}</div></div>
+</div>
+<form method="post" action="{% url 'integrated-scheduling:mps-security-compliance-run-096' %}">{% csrf_token %}<button type="submit">Executar verificação e remediação agora</button></form>
+
+<h2>Indicadores por planta</h2>
+<table><thead><tr><th>Planta</th><th>Data</th><th>Planos</th><th>% protegidos</th><th>% evidência atual</th><th>Tempo médio até âncora</th><th>Falhas</th><th>Incidentes</th></tr></thead><tbody>
+{% for s in snapshots %}<tr><td>{{ s.plant.code }}</td><td>{{ s.snapshot_date }}</td><td>{{ s.monitored_count }}</td><td>{{ s.protected_percent }}%</td><td>{{ s.evidence_current_percent }}%</td><td>{{ s.avg_minutes_to_first_anchor }} min</td><td>{{ s.integrity_failures }}</td><td>{{ s.open_incidents }}</td></tr>
+{% empty %}<tr><td colspan="8">Ainda não há snapshots de compliance.</td></tr>{% endfor %}
+</tbody></table>
+
+<h2>Decisões monitoradas</h2>
+<table><thead><tr><th>Cockpit</th><th>Planta</th><th>Criticidade</th><th>SLA</th><th>Proteção</th><th>Incidentes ativos</th></tr></thead><tbody>
+{% for row in rows %}<tr>
+<td><a href="{% url 'integrated-scheduling:mps-decision-audit-093' row.cockpit.id %}">#{{ row.cockpit.id }}</a></td>
+<td>{{ row.plant.code }}</td><td>{{ row.criticality }}</td><td>{{ row.sla_hours }}h</td><td><strong>{{ row.protection.status }}</strong></td>
+<td>{% for i in row.open_incidents %}<div><strong>{{ i.severity }}</strong> · {{ i.category }} · {{ i.message }} {% if i.status == 'OPEN' %}<form style="display:inline" method="post" action="{% url 'integrated-scheduling:mps-security-compliance-ack-096' i.id %}">{% csrf_token %}<button type="submit">Reconhecer</button></form>{% endif %}</div>{% empty %}—{% endfor %}</td>
+</tr>{% empty %}<tr><td colspan="6">Nenhum cockpit para monitorar.</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "ui/base.html" %}
+{% block content %}
+<div class="page-header"><div><h1>Otimização multicritério</h1><p>{{ run.base_scenario.name }} · {{ run.candidates.count }} candidatos · status {{ run.status }}</p></div><div><a class="btn" href="{% url 'integrated-scheduling:detail' run.base_scenario.pk %}">Voltar ao cenário-base</a></div></div>
+<div class="kpi-grid">
+  <div class="kpi"><span>Candidatos</span><strong>{{ run.summary.candidates|default:0 }}</strong></div>
+  <div class="kpi"><span>Factíveis</span><strong>{{ run.summary.feasible_candidates|default:0 }}</strong></div>
+  <div class="kpi"><span>Fronteira Pareto</span><strong>{{ run.summary.pareto_candidates|default:0 }}</strong></div>
+  <div class="kpi"><span>Melhor score</span><strong class="small-value">{{ run.summary.best_score|default:"-" }}</strong></div>
+</div>
+<div class="panel"><div class="panel-title"><h2>Ranking de soluções</h2></div><div class="table-wrap"><table><thead><tr><th>Rank</th><th>Estratégia</th><th>Score</th><th>Factível</th><th>Pareto</th><th>Atraso h</th><th>Setup h</th><th>Overtime h</th><th>Atraso prioritário</th><th>Desequilíbrio</th><th>Conflitos</th><th>Cenário</th></tr></thead><tbody>
+{% for c in candidates %}<tr><td>{{ c.rank }}</td><td>{{ c.strategy_code }}</td><td>{{ c.objective_score }}</td><td>{% if c.feasible %}Sim{% else %}Não{% endif %}</td><td>{% if c.pareto_front %}★{% endif %}</td><td>{{ c.metrics.lateness }}</td><td>{{ c.metrics.setup }}</td><td>{{ c.metrics.overtime }}</td><td>{{ c.metrics.priority_tardiness }}</td><td>{{ c.metrics.utilization_imbalance }}</td><td>{{ c.metrics.conflicts }}</td><td><a href="{% url 'integrated-scheduling:detail' c.scenario.pk %}">Abrir</a></td></tr>{% empty %}<tr><td colspan="12" class="empty">Nenhum candidato.</td></tr>{% endfor %}
+</tbody></table></div></div>
+<div class="panel" style="margin-top:16px;padding:16px"><h2>Pesos normalizados</h2><pre>{{ run.weights }}</pre><p>Score menor é melhor. Candidatos com conflito crítico recebem penalidade de inviabilidade. A estrela identifica soluções não dominadas na fronteira de Pareto.</p></div>
+{% endblock %}

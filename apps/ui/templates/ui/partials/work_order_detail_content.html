@@ -1,0 +1,69 @@
+<div id="detail-content">
+{% if action_feedback %}<div class="action-feedback {{ action_feedback.level }}">{{ action_feedback.message }}</div>{% endif %}
+<div class="detail-head">
+  <div><a class="back" href="{% url 'ui:production' %}">← Produção</a><p class="eyebrow">Ordem de produção</p><h1>{{ order.number }}</h1><p>{{ order.item.code }} · {{ order.item.description }}</p></div>
+  <div class="detail-status"><span class="status">{{ order.get_status_display }}</span><strong>{{ order.completed_quantity }} / {{ order.quantity }}</strong><span class="muted">produzido</span></div>
+</div>
+<div class="kpi-grid">
+  <div class="kpi"><span>Liberação</span><strong class="small-value">{{ order.release_date|date:'d/m/Y' }}</strong></div>
+  <div class="kpi"><span>Entrega</span><strong class="small-value">{{ order.due_date|date:'d/m/Y' }}</strong></div>
+  <div class="kpi"><span>Material necessário</span><strong>{{ material_required }}</strong></div>
+  <div class="kpi"><span>Material emitido</span><strong>{{ material_issued }}</strong></div>
+  <div class="kpi {% if material_open > 0 %}warn{% endif %}"><span>Material aberto</span><strong>{{ material_open }}</strong></div>
+</div>
+
+<div class="grid-2">
+<section class="panel">
+  <div class="panel-title"><h2>Materiais e baixa manual</h2><span class="muted">Principal ou substituto reservado</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Item</th><th>Necessário</th><th>Emitido</th><th>Aberto</th><th>Ação</th></tr></thead><tbody>
+  {% for m in materials %}
+  <tr><td>{{ m.item.code }}</td><td class="num">{{ m.required_quantity }}</td><td class="num">{{ m.issued_quantity }}</td><td class="num {% if m.open_quantity > 0 %}negative{% endif %}">{{ m.open_quantity }}</td><td>
+    {% if m.open_quantity > 0 and m.open_reservations %}
+      <details class="action-details"><summary>Baixar</summary><div class="reservation-actions">
+      {% for r in m.open_reservations %}
+        <form class="inline-form compact" method="post" action="{% url 'ui:issue-work-order-material' order.pk m.pk %}" hx-post="{% url 'ui:issue-work-order-material' order.pk m.pk %}" hx-target="#detail-content" hx-swap="outerHTML">
+          {% csrf_token %}
+          <input type="hidden" name="actual_item" value="{{ r.item_id }}"><input type="hidden" name="source_location" value="{{ r.location_id }}"><input type="hidden" name="idempotency_key" value="{{ r.ui_issue_key }}">
+          <div class="form-caption"><strong>{{ r.item.code }}</strong>{% if r.item_id != m.item_id %}<span class="badge">substituto</span>{% endif %}<small>{{ r.location }} · restante {{ r.remaining_quantity }}</small></div>
+          <label>Qtd. real<input name="actual_quantity" type="number" min="0.0001" step="0.0001" max="{{ r.remaining_quantity }}" required></label>
+          <label>Observação<input name="notes" type="text" placeholder="opcional"></label>
+          <button class="mini primary-mini" type="submit">Confirmar baixa</button>
+        </form>
+      {% endfor %}
+      </div></details>
+    {% else %}<span class="muted">—</span>{% endif %}
+  </td></tr>
+  {% empty %}<tr><td colspan="5" class="empty">Sem materiais.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+
+<section class="panel">
+  <div class="panel-title"><h2>Operações</h2><span class="muted">Setup, execução e apontamento</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Seq.</th><th>Centro</th><th>Operação</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+  {% for op in operations %}
+  <tr><td>{{ op.sequence }}</td><td>{{ op.work_center.code }}</td><td>{{ op.description }}</td><td><span class="status">{{ op.get_status_display }}</span></td><td>
+    <div class="row-actions wrap">
+      {% if op.status == 'PENDING' or op.status == 'INTERRUPTED' %}<form method="post" action="{% url 'ui:work-order-operation-action' order.pk op.pk %}" hx-post="{% url 'ui:work-order-operation-action' order.pk op.pk %}" hx-target="#detail-content" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="action" value="READY"><button class="mini">Pronta</button></form>{% endif %}
+      {% if op.status == 'PENDING' or op.status == 'READY' or op.status == 'INTERRUPTED' %}<form method="post" action="{% url 'ui:work-order-operation-action' order.pk op.pk %}" hx-post="{% url 'ui:work-order-operation-action' order.pk op.pk %}" hx-target="#detail-content" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="action" value="SETUP"><button class="mini">Iniciar setup</button></form>{% endif %}
+      {% if op.status == 'READY' or op.status == 'SETUP' or op.status == 'INTERRUPTED' %}<form method="post" action="{% url 'ui:work-order-operation-action' order.pk op.pk %}" hx-post="{% url 'ui:work-order-operation-action' order.pk op.pk %}" hx-target="#detail-content" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="action" value="RUN"><button class="mini primary-mini">Executar</button></form>{% endif %}
+      {% if op.status == 'SETUP' or op.status == 'RUNNING' %}<form method="post" action="{% url 'ui:work-order-operation-action' order.pk op.pk %}" hx-post="{% url 'ui:work-order-operation-action' order.pk op.pk %}" hx-target="#detail-content" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="action" value="INTERRUPT"><button class="mini">Interromper</button></form>{% endif %}
+      {% if op.status != 'COMPLETED' %}<details class="action-details"><summary>Apontar</summary><form class="inline-form" method="post" action="{% url 'ui:report-work-order-operation' order.pk op.pk %}" hx-post="{% url 'ui:report-work-order-operation' order.pk op.pk %}" hx-target="#detail-content" hx-swap="outerHTML">{% csrf_token %}<label>Boas<input type="number" name="good_quantity" min="0" step="0.0001" value="0"></label><label>Refugo<input type="number" name="scrap_quantity" min="0" step="0.0001" value="0"></label><label>Horas mão de obra<input type="number" name="labor_hours" min="0" step="0.0001" value="0"></label><label>Horas máquina<input type="number" name="machine_hours" min="0" step="0.0001" value="0"></label><label>Observação<input type="text" name="notes"></label><button class="mini primary-mini" type="submit">Registrar e concluir</button></form></details>{% endif %}
+    </div>
+  </td></tr>
+  {% empty %}<tr><td colspan="5" class="empty">Sem operações.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+</div>
+
+<div class="grid-2">
+<section class="panel"><div class="panel-title"><h2>Reservas de material</h2></div><div class="table-wrap"><table><thead><tr><th>Item</th><th>Local</th><th>Reservado</th><th>Consumido</th><th>Status</th></tr></thead><tbody>{% for r in reservations %}<tr><td>{{ r.item.code }}{% if r.requested_item_id != r.item_id %} <span class="badge">substituto de {{ r.requested_item.code }}</span>{% endif %}</td><td>{{ r.location }}</td><td class="num">{{ r.quantity }}</td><td class="num">{{ r.consumed_quantity }}</td><td>{{ r.get_status_display }}</td></tr>{% empty %}<tr><td colspan="5" class="empty">Sem reservas.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel"><div class="panel-title"><h2>Apontamentos por operação</h2></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Operação</th><th>Boas</th><th>Refugo</th><th>H. MO</th><th>H. maq.</th></tr></thead><tbody>{% for r in reports %}<tr><td>{{ r.reported_at|date:'d/m H:i' }}</td><td>{% if r.operation %}{{ r.operation.sequence }} · {{ r.operation.description }}{% else %}Geral{% endif %}</td><td class="num">{{ r.good_quantity }}</td><td class="num">{{ r.scrap_quantity }}</td><td class="num">{{ r.labor_hours }}</td><td class="num">{{ r.machine_hours }}</td></tr>{% empty %}<tr><td colspan="6" class="empty">Sem apontamentos.</td></tr>{% endfor %}</tbody></table></div></section>
+</div>
+
+<div class="grid-2">
+<section class="panel"><div class="panel-title"><h2>Pegging</h2></div><div class="table-wrap"><table><thead><tr><th>Componente</th><th>Pai</th><th>Produto final</th><th>Data</th><th>Qtd.</th></tr></thead><tbody>{% for p in pegging %}<tr><td>{{ p.component_item.code }}</td><td>{{ p.parent_item.code }}</td><td>{{ p.top_level_item.code }}</td><td>{{ p.need_date|date:'d/m/Y' }}</td><td class="num">{{ p.quantity }}</td></tr>{% empty %}<tr><td colspan="5" class="empty">Sem pegging.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel"><div class="panel-title"><h2>Custos e variações</h2></div><div class="cost-cards">{% for c in costs %}<div class="cost-card"><span>{{ c.get_cost_type_display }} · {{ c.cost_version.code }}</span><strong>{{ c.total_cost }}</strong><small>unitário {{ c.unit_cost }}</small><details><summary>Drill-down</summary>{% for l in c.lines.all %}<div class="kv-list"><div><span>{{ l.get_cost_category_display }}{% if l.item %} · {{ l.item.code }}{% endif %}{% if l.work_center %} · {{ l.work_center.code }}{% endif %}</span><strong>{{ l.amount }}</strong></div></div>{% endfor %}</details></div>{% empty %}<p class="empty">Sem custos.</p>{% endfor %}</div><div class="table-wrap"><table><thead><tr><th>Variação</th><th>Planejado</th><th>Real</th><th>Diferença</th></tr></thead><tbody>{% for v in variances %}<tr><td>{{ v.get_variance_type_display }}</td><td class="num">{{ v.planned_amount }}</td><td class="num">{{ v.actual_amount }}</td><td class="num {% if v.variance_amount > 0 %}negative{% endif %}">{{ v.variance_amount }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">Sem variações.</td></tr>{% endfor %}</tbody></table></div></section>
+</div>
+
+<section class="panel"><div class="panel-title"><h2>Timeline da OP</h2><span class="muted">Atualizada após cada ação HTMX</span></div><div class="timeline">{% for e in timeline %}<div class="timeline-row"><time>{% if e.has_time %}{{ e.at|date:'d/m/Y H:i' }}{% else %}{{ e.at|date:'d/m/Y' }}{% endif %}</time><span class="badge">{{ e.kind }}</span><div><strong>{{ e.title }}</strong><p>{{ e.detail }}</p></div></div>{% endfor %}</div></section>
+</div>

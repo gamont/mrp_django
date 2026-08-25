@@ -1,0 +1,75 @@
+<header class="sf-header terminal">
+  <div class="sf-header-id"><span class="sf-kicker">{{ station.plant.code }} · {{ station.code }}</span><strong>{{ station.name }}</strong></div>
+  <div class="sf-header-actions"><span>{{ request.user.get_full_name|default:request.user.username }}</span><a class="sf-btn ghost" href="{% url 'shopfloor:andon' %}?plant={{ station.plant_id }}">Andon</a><a class="sf-btn ghost" href="{% url 'shopfloor:stations' %}">Trocar estação</a><form method="post" action="{% url 'shopfloor:logout' %}">{% csrf_token %}<button class="sf-btn ghost">Sair</button></form></div>
+</header>
+<main class="sf-terminal-main">
+  {% if feedback %}<div class="sf-alert {{ feedback.level }}">{{ feedback.message }}</div>{% endif %}
+  <section class="sf-machine-strip {% if machine.status == 'DOWN' %}down{% elif machine.status == 'RUNNING' %}running{% elif machine.status == 'SETUP' %}setup{% endif %}">
+    {% if machine %}
+      <div><span>Máquina</span><strong>{{ machine.code }}</strong><small>{{ machine.name }}</small></div>
+      <div><span>Centro</span><strong>{{ machine.work_center.code }}</strong><small>{{ machine.work_center.name }}</small></div>
+      <div><span>Status</span><strong>{{ machine.get_status_display }}</strong><small>desde {{ machine.status_since|date:"H:i:s" }}</small></div>
+      <div><span>Operação atual</span><strong>{% if current_operation %}{{ current_operation.work_order.number }} / {{ current_operation.sequence }}{% else %}—{% endif %}</strong><small>{% if current_operation %}{{ current_operation.description }}{% else %}Aguardando despacho{% endif %}</small></div>
+      <div><span>OEE hoje</span><strong>{% if oee_snapshot %}{{ oee_snapshot.oee_pct|floatformat:1 }}%{% else %}—{% endif %}</strong><small>{% if oee_snapshot %}A {{ oee_snapshot.availability_pct|floatformat:0 }}% · P {{ oee_snapshot.performance_pct|floatformat:0 }}% · Q {{ oee_snapshot.quality_pct|floatformat:0 }}%{% endif %}</small></div>
+    {% else %}
+      <div><span>Estação</span><strong>Sem máquina fixa</strong><small>{% if station.work_center %}Centro {{ station.work_center.code }}{% endif %}</small></div>
+    {% endif %}
+  </section>
+
+  {% if open_downtime %}
+  <section class="sf-stop-banner">
+    <div><span>PARADA ATIVA</span><strong>{{ open_downtime.reason.code }} · {{ open_downtime.reason.description }}</strong><small>Início {{ open_downtime.started_at|date:"H:i:s" }} · {{ open_downtime.notes|default:"Sem observações" }}</small></div>
+    <form hx-post="{% url 'shopfloor:downtime-end' station.pk %}" hx-target="#terminal-content" hx-swap="innerHTML">{% csrf_token %}<button class="sf-btn success xl">Encerrar parada</button></form>
+  </section>
+  {% endif %}
+
+  <div class="sf-terminal-grid">
+    <section class="sf-panel sf-current">
+      <div class="sf-panel-title"><div><span class="sf-kicker">Execução</span><h1>{% if current_operation %}{{ current_operation.work_order.number }} · Op. {{ current_operation.sequence }}{% else %}Nenhuma operação despachada{% endif %}</h1></div>
+        {% if not current_operation %}<form hx-post="{% url 'shopfloor:dispatch-next' station.pk %}" hx-target="#terminal-content" hx-swap="innerHTML">{% csrf_token %}<button class="sf-btn primary xl">Despachar próxima</button></form>{% endif %}
+      </div>
+      {% if current_operation %}
+      <div class="sf-job-meta">
+        <div><span>Item</span><strong>{{ current_operation.work_order.item.code }}</strong><small>{{ current_operation.work_order.item.description }}</small></div>
+        <div><span>Operação</span><strong>{{ current_operation.description }}</strong><small>Status: {{ current_operation.get_status_display }}</small></div>
+        <div><span>Quantidade OP</span><strong>{{ current_operation.work_order.quantity }}</strong><small>Entrega {{ current_operation.work_order.due_date|date:"d/m/Y" }}</small></div>
+      </div>
+      {% if machine and not open_downtime %}
+      <div class="sf-action-row">
+        {% if current_operation.status == 'READY' or current_operation.status == 'INTERRUPTED' or current_operation.status == 'PENDING' %}<form hx-post="{% url 'shopfloor:operation-action' station.pk current_operation.pk %}" hx-target="#terminal-content"><input type="hidden" name="action" value="SETUP">{% csrf_token %}<button class="sf-btn warn xl">Iniciar setup</button></form>{% endif %}
+        {% if current_operation.status == 'READY' or current_operation.status == 'SETUP' or current_operation.status == 'INTERRUPTED' %}<form hx-post="{% url 'shopfloor:operation-action' station.pk current_operation.pk %}" hx-target="#terminal-content"><input type="hidden" name="action" value="RUN">{% csrf_token %}<button class="sf-btn success xl">Iniciar / retomar</button></form>{% endif %}
+        {% if current_operation.status == 'RUNNING' or current_operation.status == 'SETUP' %}<form hx-post="{% url 'shopfloor:operation-action' station.pk current_operation.pk %}" hx-target="#terminal-content"><input type="hidden" name="action" value="INTERRUPT">{% csrf_token %}<button class="sf-btn danger xl">Pausar</button></form>{% endif %}
+      </div>
+      <form class="sf-report-form" hx-post="{% url 'shopfloor:report-complete' station.pk current_operation.pk %}" hx-target="#terminal-content" hx-swap="innerHTML">
+        {% csrf_token %}
+        <label>Boas<input name="good_quantity" inputmode="decimal" value="0"></label>
+        <label>Refugo<input name="scrap_quantity" inputmode="decimal" value="0"></label>
+        <label>Horas operador<input name="labor_hours" inputmode="decimal" value="0"></label>
+        <label>Horas máquina<input name="machine_hours" inputmode="decimal" value="0"></label>
+        <label class="wide">Observações<input name="notes"></label>
+        <button class="sf-btn primary xl">Apontar e concluir operação</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </section>
+
+    <aside class="sf-panel">
+      <div class="sf-panel-title"><div><span class="sf-kicker">Máquina</span><h2>Registrar parada</h2></div></div>
+      {% if machine and not open_downtime %}
+      <form class="sf-form vertical compact" hx-post="{% url 'shopfloor:downtime-start' station.pk %}" hx-target="#terminal-content" hx-swap="innerHTML">
+        {% csrf_token %}
+        <label>Motivo<select name="reason" required><option value="">Selecione</option>{% for r in downtime_reasons %}<option value="{{ r.pk }}">{{ r.code }} · {{ r.description }}</option>{% endfor %}</select></label>
+        <label>Observações<textarea name="notes" rows="3"></textarea></label>
+        <button class="sf-btn danger xl">Iniciar parada</button>
+      </form>
+      {% elif not machine %}<div class="sf-empty">Associe uma máquina à estação para controlar paradas.</div>{% endif %}
+    </aside>
+  </div>
+
+  <section class="sf-panel sf-queue">
+    <div class="sf-panel-title"><div><span class="sf-kicker">Dispatch</span><h2>Fila do centro de trabalho</h2></div><span class="sf-count">{{ queue|length }} operações</span></div>
+    <div class="sf-table-wrap"><table><thead><tr><th>Prioridade</th><th>OP</th><th>Item</th><th>Operação</th><th>Status</th><th>Entrega</th></tr></thead><tbody>
+      {% for op in queue %}<tr class="{% if current_operation and op.pk == current_operation.pk %}active-row{% endif %}"><td>{{ forloop.counter }}</td><td><strong>{{ op.work_order.number }}</strong></td><td>{{ op.work_order.item.code }}</td><td>{{ op.sequence }} · {{ op.description }}</td><td><span class="sf-status {{ op.status|lower }}">{{ op.get_status_display }}</span></td><td>{{ op.work_order.due_date|date:"d/m/Y" }}</td></tr>{% empty %}<tr><td colspan="6" class="sf-empty">Sem operações disponíveis.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+</main>

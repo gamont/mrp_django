@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Compliance Escalation 0.9.8{% endblock %}
+{% block content %}
+<h1>Compliance Escalation Center · 0.9.8</h1>
+<p>Plantão corporativo, feriados, substituições, múltiplos canais e SLA por responsável.</p>
+<form method="post" action="{% url 'integrated-scheduling:mps-compliance-escalation-run-098' %}">{% csrf_token %}<button type="submit">Executar agora</button></form>
+{% for row in rows %}
+<section class="card"><h2>{{ row.plant.code }} — {{ row.plant.name }}</h2>
+<p><b>MTTA:</b> {{ row.metrics.mtta_minutes }} min · <b>MTTR:</b> {{ row.metrics.mttr_minutes }} min · <b>Escalamentos ativos:</b> {{ row.metrics.active_escalations }} · <b>Incidentes escalados SLA:</b> {{ row.metrics.sla_escalated_incidents }}</p>
+<h3>Próximos feriados corporativos</h3><ul>{% for h in row.holidays %}<li>{{ h.date }} — {{ h.name }}</li>{% empty %}<li>Nenhum cadastrado.</li>{% endfor %}</ul>
+<h3>Escalamentos ativos</h3><table><thead><tr><th>Incidente</th><th>Nível</th><th>Status incidente</th><th>Área</th><th>Responsável</th><th>Ativado</th><th>Notificações</th></tr></thead><tbody>
+{% for e in row.events %}<tr><td>#{{ e.incident_id }}</td><td>{{ e.level }}</td><td>{{ e.incident.status }}</td><td>{{ e.incident.responsible_area|default:"—" }}</td><td>{{ e.incident.responsible_user|default:"—" }}</td><td>{{ e.activated_at }}</td><td>{{ e.notification_count }}</td></tr>{% empty %}<tr><td colspan="7">Nenhum escalonamento ativo.</td></tr>{% endfor %}
+</tbody></table>
+<h3>SLA por área</h3><table><thead><tr><th>Área</th><th>Incidentes</th><th>SLA breach</th></tr></thead><tbody>{% for x in row.metrics.by_area %}<tr><td>{{ x.key }}</td><td>{{ x.incidents }}</td><td>{{ x.sla_breaches }}</td></tr>{% endfor %}</tbody></table>
+</section>{% endfor %}
+{% endblock %}

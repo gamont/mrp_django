@@ -1,0 +1,20 @@
+{% extends "shopfloor/base.html" %}
+{% block title %}Acesso do operador{% endblock %}
+{% block body %}
+<main class="sf-login-shell">
+  <section class="sf-login-card">
+    <div class="sf-brand">MRP <span>Shop Floor</span></div>
+    <h1>Acesso do operador</h1>
+    <p>Informe o crachá e o PIN para iniciar o terminal.</p>
+    {% if error %}<div class="sf-alert error">{{ error }}</div>{% endif %}
+    <form method="post" class="sf-form vertical">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.GET.next }}">
+      <label>Crachá<input name="badge_code" autocomplete="username" inputmode="text" autofocus required></label>
+      <label>PIN<input name="pin" type="password" inputmode="numeric" autocomplete="current-password" required></label>
+      <button class="sf-btn primary xl" type="submit">Entrar</button>
+    </form>
+    <small>Após 5 tentativas inválidas, o acesso fica bloqueado por 10 minutos.</small>
+  </section>
+</main>
+{% endblock %}

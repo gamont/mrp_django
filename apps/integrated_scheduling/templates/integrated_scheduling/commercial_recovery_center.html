@@ -1,0 +1,7 @@
+{% extends "ui/base.html" %}
+{% block content %}
+<h1>Impacto comercial do recovery</h1>
+<p>Pegging persistido do MRP até SalesOrderLine. Registros legados sem source-aware pegging não são apresentados como atribuição exata.</p>
+<div class="card"><h3>Alertas abertos</h3><table><thead><tr><th>Sev.</th><th>Pedido</th><th>Cliente</th><th>Mensagem</th></tr></thead><tbody>{% for a in alerts %}<tr><td>{{ a.severity }}</td><td>{{ a.sales_order_line.sales_order.number }}</td><td>{{ a.sales_order_line.sales_order.customer_name }}</td><td>{{ a.message }}</td></tr>{% empty %}<tr><td colspan="4">Sem alertas comerciais abertos.</td></tr>{% endfor %}</tbody></table></div>
+<div class="card"><h3>Promessas impactadas</h3><table><thead><tr><th>Pedido</th><th>Linha</th><th>Cliente</th><th>Item</th><th>Qtd pegged</th><th>Solicitada</th><th>Atual</th><th>Recuperada</th><th>Status</th></tr></thead><tbody>{% for r in impacts %}<tr><td>{{ r.sales_order_line.sales_order.number }}</td><td>{{ r.sales_order_line.line_number }}</td><td>{{ r.sales_order_line.sales_order.customer_name }}</td><td>{{ r.sales_order_line.item.code }}</td><td>{{ r.pegged_quantity }}</td><td>{{ r.requested_date }}</td><td>{{ r.current_promise_date|default:"-" }}</td><td>{{ r.recovered_promise_date|default:"-" }}</td><td>{{ r.promise_status }}</td></tr>{% empty %}<tr><td colspan="9">Sem impactos calculados.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

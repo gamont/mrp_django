@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Otimizador MPS 0.8.8 · #{{ run.id }}</h1>
+<p>MPS: {{ pub.source }} · revisão r{{ run.revision.number }} × baseline r{{ run.compare_revision.number }} · status: <b>{{ run.status }}</b></p>
+<p>{{ run.summary.objective }}</p>
+<table><thead><tr><th>Rank</th><th>Estratégia</th><th>Score</th><th>Viável financeiramente</th><th>NCG pico</th><th>Juros</th><th>Overload RCCP</th><th>Compras</th><th>Ações</th></tr></thead><tbody>
+{% for c in candidates %}<tr><td>{% if c.is_recommended %}<b>#{{ c.rank }} ★</b>{% else %}#{{ c.rank|default:'—' }}{% endif %}</td><td>{{ c.get_strategy_display }}<br><small>{{ c.name }}</small></td><td>{{ c.score|default:'—' }}</td><td>{{ c.metrics.financially_feasible|default:'—' }}</td><td>{{ c.metrics.peak_working_capital_need|default:'—' }}</td><td>{{ c.metrics.interest_cost|default:'—' }}</td><td>{{ c.metrics.rccp_overload_hours|default:'—' }}</td><td>{{ c.metrics.purchase_spend|default:'—' }}</td><td>{% if c.strategy != 'SUPPLIER_TERMS' and c.strategy != 'BASELINE' %}<form method="post" action="{% url 'integrated-scheduling:operational-mps-optimizer-adopt-088' pub.id c.id %}">{% csrf_token %}<input name="reason" placeholder="Motivo"><button type="submit">Adotar como revisão</button></form>{% elif c.strategy == 'SUPPLIER_TERMS' %}<small>Recomendação de sourcing; não altera cadastro automaticamente.</small>{% else %}<small>Plano atual.</small>{% endif %}</td></tr>
+<tr><td></td><td colspan="8"><small>{% for a in c.actions.all %}{{ a.action_type }}{% if a.item %} {{ a.item.code }}{% endif %}{% if a.quantity %} {{ a.quantity }}{% endif %}{% if a.supplier_to %} → {{ a.supplier_to.code }}{% endif %}; {% empty %}Sem ação física adicional.{% endfor %}</small></td></tr>{% empty %}<tr><td colspan="9">Sem candidatos.</td></tr>{% endfor %}
+</tbody></table>
+<p><small>{{ run.summary.warning }}</small></p>
+<p><a href="{% url 'integrated-scheduling:operational-mps-detail' pub.id %}">Voltar ao MPS</a></p>
+{% endblock %}

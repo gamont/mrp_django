@@ -1,0 +1,44 @@
+<header class="sf-header terminal">
+  <div class="sf-header-id"><span class="sf-kicker">Andon · {{ metric_date|date:"d/m/Y" }}</span><strong>{{ plant.code }} · {{ plant.name }}</strong></div>
+  <div class="sf-header-actions">
+    <form method="get" action="{% url 'shopfloor:andon' %}"><select class="sf-select-inline" name="plant" onchange="this.form.submit()">{% for p in plants %}<option value="{{ p.pk }}" {% if p.pk == plant.pk %}selected{% endif %}>{{ p.code }} · {{ p.name }}</option>{% endfor %}</select></form>
+    <a class="sf-btn ghost" href="{% url 'shopfloor:oee-history' %}?plant={{ plant.pk }}">Histórico OEE</a>
+    <a class="sf-btn ghost" href="{% url 'shopfloor:stations' %}">Estações</a>
+  </div>
+</header>
+<main class="sf-terminal-main sf-andon-main">
+  <section class="sf-andon-grid">
+    {% for row in rows %}
+      <article class="sf-andon-card status-{{ row.machine.status|lower }}">
+        <div class="sf-andon-head">
+          <div><span class="sf-kicker">{{ row.machine.work_center.code }}</span><h2>{{ row.machine.code }}</h2><small>{{ row.machine.name }}</small></div>
+          <span class="sf-machine-state {{ row.machine.status|lower }}">{{ row.machine.get_status_display }}</span>
+        </div>
+        {% if row.open_downtime %}
+          <div class="sf-andon-stop"><strong>{{ row.open_downtime.reason.code }}</strong><span>{{ row.open_downtime.reason.description }}</span><small>desde {{ row.open_downtime.started_at|date:"H:i:s" }}</small></div>
+        {% elif row.machine.current_operation %}
+          <div class="sf-andon-job"><strong>{{ row.machine.current_operation.work_order.number }} · Op. {{ row.machine.current_operation.sequence }}</strong><span>{{ row.machine.current_operation.work_order.item.code }}</span><small>{{ row.machine.current_operation.description }}</small></div>
+        {% else %}
+          <div class="sf-andon-job idle"><strong>Aguardando operação</strong><span>Sem ordem em execução</span></div>
+        {% endif %}
+        {% with s=row.snapshot %}
+        <div class="sf-oee-number"><span>OEE hoje</span><strong>{{ s.oee_pct|floatformat:1 }}%</strong></div>
+        {% if row.target %}<div><span class="sf-target-badge {% if row.target_met %}met{% else %}miss{% endif %}">Meta {{ row.target_oee_pct|floatformat:1 }}% · {% if row.target_met %}atingida{% else %}abaixo da meta{% endif %}</span></div>{% endif %}
+        <div class="sf-oee-bars">
+          <div><span>Disponibilidade</span><strong>{{ s.availability_pct|floatformat:1 }}%</strong><i style="width:{{ s.availability_pct|floatformat:0 }}%"></i></div>
+          <div><span>Performance</span><strong>{{ s.performance_pct|floatformat:1 }}%</strong><i style="width:{{ s.performance_pct|floatformat:0 }}%"></i></div>
+          <div><span>Qualidade</span><strong>{{ s.quality_pct|floatformat:1 }}%</strong><i style="width:{{ s.quality_pct|floatformat:0 }}%"></i></div>
+        </div>
+        <div class="sf-reliability">
+          <div><span>Boas</span><strong>{{ s.good_quantity|floatformat:0 }}</strong></div>
+          <div><span>Refugo</span><strong>{{ s.scrap_quantity|floatformat:0 }}</strong></div>
+          <div><span>Parada</span><strong>{{ s.downtime_minutes|floatformat:0 }} min</strong></div>
+          <div><span>Falhas</span><strong>{{ s.failures }}</strong></div>
+          <div><span>MTBF</span><strong>{{ s.mtbf_minutes|floatformat:0 }} min</strong></div>
+          <div><span>MTTR</span><strong>{{ s.mttr_minutes|floatformat:0 }} min</strong></div>
+        </div>
+        {% endwith %}
+      </article>
+    {% empty %}<div class="sf-empty">Nenhuma máquina ativa nesta planta.</div>{% endfor %}
+  </section>
+</main>

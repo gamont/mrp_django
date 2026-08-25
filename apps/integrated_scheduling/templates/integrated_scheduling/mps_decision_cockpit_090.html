@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}<p><a href="{% url 'integrated-scheduling:mps-decision-minutes-091' cockpit.id %}">Ata formal e aprovações 0.9.1</a></p>
+<h1>Cockpit executivo #{{ cockpit.id }} · 0.9.0</h1>
+<p><b>{{ cockpit.publication.cycle.plant.code }}</b> · {{ cockpit.publication.source }} · run Pareto #{{ cockpit.optimization_run.id }} · baseline r{{ cockpit.baseline_revision.number }} · <b>{{ cockpit.get_status_display }}</b></p>
+{% if cockpit.selected_candidate %}<p><b>Selecionado:</b> {{ cockpit.selected_candidate.name }} · justificativa: {{ cockpit.selection_rationale|default:"—" }}</p>{% endif %}
+{% if cockpit.official_revision %}<p><b>Plano oficial congelado:</b> revisão r{{ cockpit.official_revision.number }}. Congelamento não publica o MPS nem executa MRP automaticamente.</p>{% endif %}
+
+<h2>Fronteira visual</h2>
+<div style="display:flex;gap:1rem;align-items:end;flex-wrap:wrap"><label>Eixo X <select id="axis-x"><option value="rccp_overload_hours">RCCP overload</option><option value="peak_uncovered_financing">Financiamento descoberto</option><option value="interest_cost">Juros</option><option value="inventory_exposure">Estoque</option><option value="purchase_spend">Compras</option><option value="service_risk_proxy">Risco de serviço</option></select></label><label>Eixo Y <select id="axis-y"><option value="peak_uncovered_financing">Financiamento descoberto</option><option value="rccp_overload_hours">RCCP overload</option><option value="interest_cost">Juros</option><option value="inventory_exposure">Estoque</option><option value="purchase_spend">Compras</option><option value="service_risk_proxy">Risco de serviço</option></select></label><span>● Frente 1 = borda dupla; candidatos shortlisted recebem rótulo.</span></div>
+<svg id="pareto-chart" viewBox="0 0 900 420" style="width:100%;max-width:1000px;border:1px solid #ccc;margin-top:.6rem"></svg>
+{{ chart_data|json_script:"candidate-data" }}
+<script>
+(function(){
+ const data=JSON.parse(document.getElementById('candidate-data').textContent||'[]'); const svg=document.getElementById('pareto-chart');
+ const sx=document.getElementById('axis-x'), sy=document.getElementById('axis-y');
+ const ns='http://www.w3.org/2000/svg';
+ function n(v){v=Number(v);return Number.isFinite(v)?v:0}
+ function draw(){ while(svg.firstChild)svg.removeChild(svg.firstChild); const xk=sx.value,yk=sy.value, W=900,H=420,p=55;
+  const xs=data.map(d=>n(d[xk])),ys=data.map(d=>n(d[yk])); const xmin=Math.min(0,...xs),xmax=Math.max(1,...xs),ymin=Math.min(0,...ys),ymax=Math.max(1,...ys);
+  const X=v=>p+(n(v)-xmin)/(xmax-xmin||1)*(W-2*p),Y=v=>H-p-(n(v)-ymin)/(ymax-ymin||1)*(H-2*p);
+  function line(x1,y1,x2,y2){let e=document.createElementNS(ns,'line'); for(const [k,v] of Object.entries({x1,y1,x2,y2,stroke:'#888'}))e.setAttribute(k,v);svg.appendChild(e)}
+  line(p,H-p,W-p,H-p);line(p,p,p,H-p);
+  data.forEach(d=>{let g=document.createElementNS(ns,'g');g.style.cursor='pointer';let c=document.createElementNS(ns,'circle');c.setAttribute('cx',X(d[xk]));c.setAttribute('cy',Y(d[yk]));c.setAttribute('r',d.is_pareto?9:6);c.setAttribute('fill','currentColor');if(d.is_pareto){c.setAttribute('stroke','#000');c.setAttribute('stroke-width','3')}let t=document.createElementNS(ns,'title');t.textContent='#'+d.rank+' '+d.name+' | F'+d.pareto_rank;g.appendChild(c);g.appendChild(t);if(d.shortlisted){let tx=document.createElementNS(ns,'text');tx.setAttribute('x',X(d[xk])+11);tx.setAttribute('y',Y(d[yk])-8);tx.setAttribute('font-size','11');tx.textContent='#'+d.rank+' '+d.name;g.appendChild(tx)}svg.appendChild(g)});
+  let xl=document.createElementNS(ns,'text');xl.setAttribute('x',W/2);xl.setAttribute('y',H-10);xl.setAttribute('text-anchor','middle');xl.textContent=xk;svg.appendChild(xl);let yl=document.createElementNS(ns,'text');yl.setAttribute('x',15);yl.setAttribute('y',20);yl.textContent=yk;svg.appendChild(yl);
+ }
+ sx.addEventListener('change',draw);sy.addEventListener('change',draw);draw();
+})();
+</script>
+
+<h2>Comparação lado a lado</h2>
+<form method="get" style="display:flex;gap:.6rem;align-items:end;flex-wrap:wrap"><label>Cenário A <select name="left">{% for r in reviews %}<option value="{{ r.candidate.id }}" {% if comparison.left.candidate_id == r.candidate.id %}selected{% endif %}>#{{ r.candidate.rank }} {{ r.candidate.name }}</option>{% endfor %}</select></label><label>Cenário B <select name="right">{% for r in reviews %}<option value="{{ r.candidate.id }}" {% if comparison.right.candidate_id == r.candidate.id %}selected{% endif %}>#{{ r.candidate.rank }} {{ r.candidate.name }}</option>{% endfor %}</select></label><button>Comparar</button></form>
+{% if comparison.left and comparison.right %}<table class="table"><thead><tr><th>Métrica</th><th>{{ comparison.left.name }}</th><th>{{ comparison.right.name }}</th></tr></thead><tbody>
+<tr><td>Pareto</td><td>F{{ comparison.left.pareto_rank }}</td><td>F{{ comparison.right.pareto_rank }}</td></tr><tr><td>Score</td><td>{{ comparison.left.score }}</td><td>{{ comparison.right.score }}</td></tr>
+<tr><td>Risco serviço</td><td>{{ comparison.left.objective_vector.service_risk_proxy }}</td><td>{{ comparison.right.objective_vector.service_risk_proxy }}</td></tr><tr><td>RCCP overload</td><td>{{ comparison.left.objective_vector.rccp_overload_hours }}</td><td>{{ comparison.right.objective_vector.rccp_overload_hours }}</td></tr><tr><td>Financiamento descoberto</td><td>{{ comparison.left.objective_vector.peak_uncovered_financing }}</td><td>{{ comparison.right.objective_vector.peak_uncovered_financing }}</td></tr><tr><td>Juros</td><td>{{ comparison.left.objective_vector.interest_cost }}</td><td>{{ comparison.right.objective_vector.interest_cost }}</td></tr><tr><td>Estoque</td><td>{{ comparison.left.objective_vector.inventory_exposure }}</td><td>{{ comparison.right.objective_vector.inventory_exposure }}</td></tr><tr><td>Compras</td><td>{{ comparison.left.objective_vector.purchase_spend }}</td><td>{{ comparison.right.objective_vector.purchase_spend }}</td></tr>
+</tbody></table>{% endif %}
+
+<h2>Candidatos e avaliação</h2>
+<table class="table"><thead><tr><th>Rank</th><th>Front</th><th>Candidato</th><th>Shortlist</th><th>Rótulo</th><th>Nota executiva</th><th>Escolha</th></tr></thead><tbody>
+{% for r in reviews %}<tr><td>#{{ r.candidate.rank }}</td><td>F{{ r.candidate.pareto_rank }}{% if r.candidate.is_pareto %} ★{% endif %}</td><td>{{ r.candidate.name }}</td><td colspan="3"><form method="post" action="{% url 'integrated-scheduling:mps-decision-review-candidate-090' cockpit.id r.candidate.id %}">{% csrf_token %}<input type="hidden" name="shortlisted" value="0"><label><input type="checkbox" name="shortlisted" value="1" {% if r.shortlisted %}checked{% endif %}> shortlist</label> <input name="business_label" value="{{ r.business_label }}" placeholder="Rótulo executivo"> <input name="executive_note" value="{{ r.executive_note }}" placeholder="Nota"> <input name="priority" type="number" min="0" value="{{ r.priority }}" style="width:5rem"><button>Salvar</button></form></td><td>{% if cockpit.status == 'OPEN' or cockpit.status == 'SELECTED' %}<form method="post" action="{% url 'integrated-scheduling:mps-decision-select-candidate-090' cockpit.id r.candidate.id %}">{% csrf_token %}<input name="rationale" placeholder="Por que escolher este cenário?" required><button>Selecionar</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+
+<h2>Governança executiva</h2>
+{% if cockpit.status == 'SELECTED' %}<form method="post" action="{% url 'integrated-scheduling:mps-decision-action-090' cockpit.id 'submit' %}">{% csrf_token %}<button>Enviar para aprovação executiva</button></form>{% endif %}
+{% if cockpit.status == 'PENDING_APPROVAL' %}<div style="display:flex;gap:1rem;flex-wrap:wrap"><form method="post" action="{% url 'integrated-scheduling:mps-decision-action-090' cockpit.id 'approve' %}">{% csrf_token %}<textarea name="notes" placeholder="Justificativa/ata da decisão"></textarea><button>Aprovar decisão</button></form><form method="post" action="{% url 'integrated-scheduling:mps-decision-action-090' cockpit.id 'reject' %}">{% csrf_token %}<textarea name="notes" placeholder="Motivo da rejeição"></textarea><button>Rejeitar</button></form></div>{% endif %}
+{% if cockpit.status == 'APPROVED' %}<form method="post" action="{% url 'integrated-scheduling:mps-decision-action-090' cockpit.id 'freeze' %}">{% csrf_token %}<button>Congelar cenário como plano oficial</button></form><p>Esta ação materializa os buckets e cria uma revisão APPROVED. Ela <b>não</b> publica MasterProductionSchedule nem executa MRP.</p>{% endif %}
+<p><a href="{% url 'integrated-scheduling:operational-mps-detail' cockpit.publication.id %}">Voltar ao MPS operacional</a></p>
+{% endblock %}

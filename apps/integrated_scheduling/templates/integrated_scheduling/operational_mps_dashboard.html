@@ -1,0 +1,9 @@
+{% extends "ui/base.html" %}{% block title %}MPS Operacional{% endblock %}{% block content %}
+<h1>MPS operacional semanal · 0.8.3</h1>
+<p>Publicação S&amp;OP → buckets semanais → time fences → RCCP → MRP.</p>
+{% if policy %}<div class="card"><b>Política:</b> DTF {{ policy.demand_time_fence_days }}d · PTF {{ policy.planning_time_fence_days }}d · RCCP obrigatório={{ policy.require_rccp_clear }}</div>{% endif %}
+<form method="post" action="{% url 'integrated-scheduling:operational-mps-build' %}" class="card">{% csrf_token %}
+<label>Ciclo aprovado</label><select name="cycle_id" required>{% for c in cycles %}<option value="{{ c.pk }}">{{ c }}</option>{% endfor %}</select>
+<label>Data-base</label><input type="date" name="as_of_date"><button class="btn">Construir MPS semanal</button></form>
+<table><thead><tr><th>Fonte</th><th>Ciclo</th><th>Status</th><th>Buckets</th><th>MRP</th></tr></thead><tbody>{% for p in publications %}<tr><td><a href="{% url 'integrated-scheduling:operational-mps-detail' p.pk %}">{{ p.source }}</a></td><td>{{ p.cycle }}</td><td>{{ p.status }}</td><td>{{ p.weekly_buckets.count }}</td><td>{{ p.planning_run_id|default:"—" }}</td></tr>{% endfor %}</tbody></table>
+{% endblock %}

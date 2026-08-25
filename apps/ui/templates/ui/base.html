@@ -1,0 +1,54 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}MRP{% endblock %} · v{{ mrp_version }}</title>
+  <link rel="stylesheet" href="{% static 'ui/app.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="{% url 'ui:home' %}"><span class="brand-mark">M</span><span>MRP Control</span></a>
+    <nav>
+      <a href="{% url 'integrated-scheduling:dashboard' %}">Programação integrada</a>
+      <a href="{% url 'ui:planner' %}" class="{% if request.resolver_match.url_name == 'planner' or request.resolver_match.url_name == 'home' %}active{% endif %}">Planejamento</a>
+      <a href="{% url 'ui:production' %}" class="{% if request.resolver_match.url_name == 'production' %}active{% endif %}">Produção</a>
+      <a href="{% url 'shopfloor:stations' %}">Terminal chão de fábrica</a>
+      <a href="{% url 'ui:purchasing' %}" class="{% if request.resolver_match.url_name == 'purchasing' %}active{% endif %}">Compras</a>
+      <a href="{% url 'ui:inventory' %}" class="{% if request.resolver_match.url_name == 'inventory' %}active{% endif %}">Estoque</a>
+      <a href="{% url 'ui:quality' %}" class="{% if request.resolver_match.url_name == 'quality' %}active{% endif %}">Qualidade</a>
+      <a href="{% url 'ui:costing' %}" class="{% if request.resolver_match.url_name == 'costing' %}active{% endif %}">Custos</a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/api/docs/">API / Swagger</a>
+      <a href="/admin/">Administração</a>
+    </div>
+  </aside>
+  <main>
+    <header class="topbar">
+      <form method="post" action="{% url 'ui:select-plant' %}" class="plant-form" hx-post="{% url 'ui:select-plant' %}" hx-swap="none">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <label for="plant_id">Planta</label>
+        <select name="plant_id" id="plant_id" onchange="this.form.requestSubmit()">
+          {% for p in ui_plants %}
+          <option value="{{ p.pk }}" {% if ui_selected_plant and p.pk == ui_selected_plant.pk %}selected{% endif %}>{{ p.code }} · {{ p.name }}</option>
+          {% empty %}<option>Sem plantas</option>{% endfor %}
+        </select>
+      </form>
+      <div class="top-actions">
+        <span class="muted">{{ request.user.get_full_name|default:request.user.username }}</span>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button">Sair</button></form>
+      </div>
+    </header>
+    {% if messages %}<div class="flash-stack">{% for message in messages %}<div class="flash {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    <section class="page" id="dashboard-content" hx-get="{{ request.path }}" hx-trigger="every 60s" hx-target="#dashboard-content" hx-swap="innerHTML">
+      {% block content %}{% endblock %}
+    </section>
+  </main>
+</div>
+</body>
+</html>

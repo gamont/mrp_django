@@ -1,0 +1,7 @@
+{% extends "ui/base.html" %}
+{% block title %}Comparar cenários{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>Comparação de cenários</h1><p>{{ plant.code }} · escolha até quatro alternativas antes de publicar.</p></div><a class="btn" href="{% url 'integrated-scheduling:dashboard' %}">Voltar</a></div>
+<div class="panel"><form method="get" class="form-grid">{% for s in scenarios %}<label><input type="checkbox" name="scenario" value="{{ s.pk }}" {% if s.pk in selected_ids %}checked{% endif %}> {{ s.name }} · {{ s.get_scheduling_direction_display }}</label>{% endfor %}<button class="btn btn-primary">Comparar</button></form></div>
+<div class="panel"><h2>Ranking</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>Cenário</th><th>Direção</th><th>Críticos</th><th>Conflitos</th><th>Atraso total</th><th>Atraso máx.</th><th>Movidas</th><th>Alternativas</th></tr></thead><tbody>{% for r in rows %}<tr><td>{{ forloop.counter }}</td><td><a href="{% url 'integrated-scheduling:detail' r.id %}">{{ r.name }}</a></td><td>{{ r.direction }}</td><td>{{ r.critical_conflicts }}</td><td>{{ r.conflicts }}</td><td>{{ r.late_hours }} h</td><td>{{ r.max_late_hours }} h</td><td>{{ r.shifted_operations }}</td><td>{{ r.alternate_resource_operations }}</td></tr>{% empty %}<tr><td colspan="9">Nenhum cenário concluído.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

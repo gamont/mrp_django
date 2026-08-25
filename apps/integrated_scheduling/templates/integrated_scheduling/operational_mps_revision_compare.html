@@ -1,0 +1,13 @@
+{% extends "ui/base.html" %}{% block title %}Comparação MPS{% endblock %}{% block content %}
+<h1>Comparação de revisões · {{ pub.source }}</h1>
+<p><b>r{{ left.number }}</b> → <b>r{{ right.number }}</b></p>
+<div class="cards">
+  <div class="card"><h3>Impacto estimado MRP</h3><p>Buckets alterados: {{ diff.estimated_mrp_impact.changed_buckets }}</p><p>Itens alterados: {{ diff.estimated_mrp_impact.changed_items }}</p><p>Delta líquido: {{ diff.estimated_mrp_impact.net_quantity_delta }}</p><p>Movimento absoluto: {{ diff.estimated_mrp_impact.absolute_quantity_delta }}</p><small>{{ diff.estimated_mrp_impact.note }}</small></div>
+  <div class="card"><h3>Impacto RCCP</h3><p>Sobrecarga: {{ diff.rccp_impact.from_overload_hours }}h → {{ diff.rccp_impact.to_overload_hours }}h</p><p>Delta: {{ diff.rccp_impact.overload_hours_delta }}h</p><p>Críticas: {{ diff.rccp_impact.from_critical }} → {{ diff.rccp_impact.to_critical }}</p></div>
+</div>
+<h2>Diff item × semana</h2>
+<table><thead><tr><th>Item</th><th>Semana</th><th>Qtd anterior</th><th>Qtd nova</th><th>Delta</th><th>Status</th></tr></thead><tbody>
+{% for r in diff.rows %}<tr><td>{{ r.item_code }}</td><td>{{ r.bucket_start }}</td><td>{{ r.from_quantity }}</td><td>{{ r.to_quantity }}</td><td>{{ r.delta }}</td><td>{{ r.from_status|default:'—' }} → {{ r.to_status|default:'—' }}</td></tr>{% empty %}<tr><td colspan="6">Sem diferenças.</td></tr>{% endfor %}
+</tbody></table>
+<p><a class="btn" href="{% url 'integrated-scheduling:operational-mps-detail' pub.pk %}">Voltar ao MPS</a></p>
+{% endblock %}

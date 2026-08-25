@@ -1,0 +1,11 @@
+{% extends "ui/base.html" %}
+{% block content %}
+<h1>Recovery #{{ trigger.pk }} · {{ trigger.get_trigger_type_display }}</h1>
+<div class="card"><strong>Severidade:</strong> {{ trigger.severity }} · <strong>Status:</strong> {{ trigger.status }} · <strong>ETA:</strong> {{ trigger.recovery_eta_seconds }} s</div>
+<div class="grid"><div class="card"><h3>Impacto operacional</h3><p>{{ impact.affected_slots }} slots · {{ impact.affected_work_orders }} OPs · {{ impact.frozen_slots }} frozen</p></div><div class="card"><h3>Impacto comercial</h3><p>{{ impact.impacted_sales_orders }} pedidos · {{ impact.customers|join:", "|default:"-" }}</p><small>Impacto comercial é inferido por item/data; pegging deve ser usado para atribuição contratual exata.</small></div></div>
+<form method="post" action="{% url 'integrated-scheduling:recovery-control-generate' trigger.pk %}">{% csrf_token %}<label>Candidatos</label><input name="candidate_count" value="3" size="4"><button type="submit">Gerar planos</button></form>
+<h2>Planos candidatos</h2><table class="table"><thead><tr><th>Rank</th><th>Plano</th><th>Status</th><th>Risco</th><th>Movidas</th><th>Atrasadas</th><th>Trocas máquina</th><th>Auto</th><th></th></tr></thead><tbody>
+{% for p in plans %}<tr><td>{{ p.rank }}</td><td>{{ p.name }}</td><td>{{ p.status }}</td><td>{{ p.risk_score }}</td><td>{{ p.metrics.moved_operations|default:"-" }}</td><td>{{ p.metrics.late_operations|default:"-" }}</td><td>{{ p.metrics.machine_changes|default:"-" }}</td><td>{% if p.auto_publish_eligible %}elegível{% else %}-{% endif %}</td><td>{% if p.status == 'READY' %}<form method="post" action="{% url 'integrated-scheduling:recovery-plan-publish' trigger.pk p.pk %}">{% csrf_token %}<button>Publicar</button></form>{% endif %}</td></tr>{% empty %}<tr><td colspan="9">Nenhum plano gerado.</td></tr>{% endfor %}
+</tbody></table>
+{% if trigger.status == 'SOLVING' %}<script>setTimeout(()=>location.reload(),5000);</script>{% endif %}
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div><h1 class="h3 mb-1">Compliance SLA & Escalation · 0.9.7</h1><p class="text-muted mb-0">Escalonamento temporal, plantão, MTTA e MTTR dos incidentes de compliance.</p></div>
+    <form method="post" action="{% url 'integrated-scheduling:mps-compliance-escalation-run-097' %}">{% csrf_token %}<button class="btn btn-primary">Executar agora</button></form>
+  </div>
+  {% for row in rows %}
+  <div class="card mb-4">
+    <div class="card-header"><strong>{{ row.plant.code }}</strong> · MTTA {{ row.metrics.mtta_minutes }} min · MTTR {{ row.metrics.mttr_minutes }} min · Escalamentos ativos {{ row.metrics.active_escalations }}</div>
+    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Incidente</th><th>Cockpit</th><th>Nível</th><th>Regra</th><th>Ativado</th><th>Notificações</th><th>Última notificação</th></tr></thead><tbody>
+    {% for ev in row.events %}<tr><td>#{{ ev.incident_id }} · {{ ev.incident.category }}</td><td>#{{ ev.incident.cockpit_id }}</td><td>{{ ev.level }}</td><td>{{ ev.rule.name }}</td><td>{{ ev.activated_at }}</td><td>{{ ev.notification_count }}</td><td>{{ ev.last_notified_at|default:"—" }}</td></tr>{% empty %}<tr><td colspan="7" class="text-muted">Nenhum escalamento ativo.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+  {% empty %}<div class="alert alert-secondary">Nenhuma política de escalonamento ativa.</div>{% endfor %}
+</div>
+{% endblock %}

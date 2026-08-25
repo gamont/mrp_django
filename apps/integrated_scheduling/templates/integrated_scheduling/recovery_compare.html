@@ -1,0 +1,12 @@
+{% extends "ui/base.html" %}{% block content %}
+<div class="page-header"><h1>Plano atual × plano recuperado</h1><p>Trigger #{{ trigger.id }} · {{ trigger.get_trigger_type_display }} · {{ trigger.get_status_display }}</p></div>
+<div class="kpi-grid">
+<div class="kpi"><strong>{{ comparison.summary.frozen_operations|default:0 }}</strong><span>operações congeladas</span></div>
+<div class="kpi"><strong>{{ comparison.summary.moved_operations|default:0 }}</strong><span>operações movidas</span></div>
+<div class="kpi"><strong>{{ comparison.summary.machine_changes|default:0 }}</strong><span>trocas de máquina</span></div>
+<div class="kpi"><strong>{{ comparison.summary.late_operations|default:0 }}</strong><span>operações atrasadas</span></div>
+</div>
+<table class="data-table"><thead><tr><th>OP</th><th>Seq</th><th>Atual</th><th>Recuperado</th><th>Máquina</th><th>Δ min</th><th>Frozen</th></tr></thead><tbody>
+{% for r in comparison.rows %}<tr><td>{{ r.work_order }}</td><td>{{ r.sequence }}</td><td>{{ r.current_start|date:"d/m H:i" }} → {{ r.current_end|date:"d/m H:i" }}</td><td>{{ r.recovered_start|date:"d/m H:i" }} → {{ r.recovered_end|date:"d/m H:i" }}</td><td>{{ r.current_machine|default:"—" }} → {{ r.recovered_machine|default:"—" }}</td><td>{{ r.delta_minutes|default:"—" }}</td><td>{% if r.frozen %}Sim{% else %}Não{% endif %}</td></tr>{% empty %}<tr><td colspan="7">Plano recuperado ainda não disponível.</td></tr>{% endfor %}</tbody></table>
+{% if trigger.status == 'READY' %}<form method="post" action="{% url 'integrated-scheduling:recovery-publish' trigger.pk %}">{% csrf_token %}<button class="btn btn-primary">Publicar plano recuperado</button></form>{% endif %}
+{% endblock %}
