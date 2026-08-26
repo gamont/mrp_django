@@ -112,7 +112,7 @@ def submit_decision(cockpit, user=None):
 
 @transaction.atomic
 def approve_decision(cockpit, user=None, notes=""):
-    cockpit = MPSDecisionCockpit.objects.select_for_update().select_related("selected_candidate__simulation").get(pk=cockpit.pk)
+    cockpit = MPSDecisionCockpit.objects.select_for_update(of=("self",)).select_related("selected_candidate__simulation").get(pk=cockpit.pk)
     if cockpit.status != MPSDecisionCockpit.Status.PENDING_APPROVAL:
         raise ValueError("A decisão não está aguardando aprovação.")
     if _user_id(user) and cockpit.selected_by_id and _user_id(user) == cockpit.selected_by_id:
@@ -156,7 +156,7 @@ def freeze_selected_as_official(cockpit, user=None):
     Não publica o MasterProductionSchedule nem executa MRP; essas ações permanecem
     separadas e continuam sujeitas ao RCCP e ao workflow da publicação.
     """
-    cockpit = MPSDecisionCockpit.objects.select_for_update().select_related("selected_candidate", "approved_by", "selected_by").get(pk=cockpit.pk)
+    cockpit = MPSDecisionCockpit.objects.select_for_update(of=("self",)).select_related("selected_candidate", "approved_by", "selected_by").get(pk=cockpit.pk)
     if cockpit.status != MPSDecisionCockpit.Status.APPROVED:
         raise ValueError("Somente uma decisão executiva APPROVED pode ser congelada.")
     candidate = cockpit.selected_candidate

@@ -79,7 +79,7 @@ def _sig_hash(req,user,signed_at,content_h):
 
 @transaction.atomic
 def sign_requirement(req,user,password=None,confirmation='',client_ip=None,user_agent=''):
-    req=MPSDecisionApprovalRequirement.objects.select_for_update().select_related('cockpit','matrix_rule').get(pk=req.pk)
+    req=MPSDecisionApprovalRequirement.objects.select_for_update(of=('self',)).select_related('cockpit','matrix_rule').get(pk=req.pk)
     if req.status!=MPSDecisionApprovalRequirement.Status.PENDING: raise ValueError('A exigência de alçada não está pendente.')
     if (confirmation or '').strip().upper()!=CONFIRMATION: raise ValueError(f'Digite exatamente "{CONFIRMATION}" para confirmar a aprovação.')
     if not _eligible(req,user): raise ValueError('Usuário não pertence a um grupo autorizado para esta alçada.')

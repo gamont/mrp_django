@@ -42,7 +42,7 @@ def _ledger_totals(period):
 
 @transaction.atomic
 def final_close_period(period, user=None, strict_reconciliation=False):
-    period = AccountingPeriod.objects.select_for_update().select_related("plant", "cost_version").get(pk=period.pk)
+    period = AccountingPeriod.objects.select_for_update(of=("self",)).select_related("plant", "cost_version").get(pk=period.pk)
     if period.status == AccountingPeriod.Status.CLOSED:
         return period.close_runs.filter(status=PeriodCloseRun.Status.COMPLETED).first()
     if period.status not in {AccountingPeriod.Status.OPEN, AccountingPeriod.Status.CLOSING}:
