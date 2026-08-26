@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 
-MRP_VERSION = "1.0.8"
+MRP_VERSION = "1.0.9"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
