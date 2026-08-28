@@ -120,4 +120,3 @@ def test_work_order_detail_query_count_does_not_grow_with_children(client):
         f"1 material/op = {small_queries} queries; "
         f"20 materials/ops = {large_queries} queries"
     )
-
