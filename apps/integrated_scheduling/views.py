@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -552,7 +553,7 @@ def operational_mps_dashboard(request):
     from .models import SAndOPCycle, OperationalMPSPublication, MPSOperationalPolicy
     plant=_plant(request)
     cycles=SAndOPCycle.objects.filter(plant=plant,status__in=[SAndOPCycle.Status.APPROVED,SAndOPCycle.Status.PUBLISHED]).order_by('-cycle_month','-version')[:20] if plant else []
-    publications=OperationalMPSPublication.objects.filter(cycle__plant=plant).select_related('cycle','planning_run').order_by('-created_at')[:30] if plant else []
+    publications=OperationalMPSPublication.objects.filter(cycle__plant=plant).select_related('cycle','planning_run').annotate(bucket_count=Count('weekly_buckets')).order_by('-created_at')[:30] if plant else []
     policy=MPSOperationalPolicy.objects.filter(plant=plant).first() if plant else None
     return render(request,'integrated_scheduling/operational_mps_dashboard.html',{'plant':plant,'cycles':cycles,'publications':publications,'policy':policy})
 
