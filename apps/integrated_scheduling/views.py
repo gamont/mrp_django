@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -573,11 +573,60 @@ def operational_mps_build_view(request):
 
 @login_required
 def operational_mps_detail(request,pk):
-    from .models import OperationalMPSPublication
-    pub=get_object_or_404(OperationalMPSPublication.objects.select_related('cycle','policy','planning_run'),pk=pk)
-    buckets=list(pub.weekly_buckets.select_related('item').all())
-    for b in buckets: b.delta_quantity=b.quantity-b.baseline_quantity
-    return render(request,'integrated_scheduling/operational_mps_detail.html',{'pub':pub,'buckets':buckets,'exceptions':pub.rccp_exceptions.select_related('work_center').all(),'changes':pub.bucket_change_requests.select_related('source_bucket__item','target_bucket').all()[:50],'revisions':pub.revisions.select_related('created_by','approved_by').order_by('-number')[:30]})
+    from .models import MPSRevisionSimulation, OperationalMPSPublication
+
+    pub = get_object_or_404(
+        OperationalMPSPublication.objects.select_related(
+            'cycle',
+            'policy',
+            'planning_run',
+        ),
+        pk=pk,
+    )
+
+    buckets = list(
+        pub.weekly_buckets.select_related('item').all()
+    )
+    for b in buckets:
+        b.delta_quantity = b.quantity - b.baseline_quantity
+
+    exceptions = pub.rccp_exceptions.select_related(
+        'work_center',
+    ).all()
+
+    changes = pub.bucket_change_requests.select_related(
+        'source_bucket__item',
+        'target_bucket',
+        'decided_by',
+    ).all()[:50]
+
+    revisions = (
+        pub.revisions
+        .select_related(
+            'created_by',
+            'approved_by',
+        )
+        .prefetch_related(
+            Prefetch(
+                'mrp_simulations',
+                queryset=MPSRevisionSimulation.objects.order_by('-created_at'),
+                to_attr='latest_simulations',
+            )
+        )
+        .order_by('-number')[:30]
+    )
+
+    return render(
+        request,
+        'integrated_scheduling/operational_mps_detail.html',
+        {
+            'pub': pub,
+            'buckets': buckets,
+            'exceptions': exceptions,
+            'changes': changes,
+            'revisions': revisions,
+        },
+    )
 
 
 @login_required
