@@ -590,6 +590,15 @@ def operational_mps_detail(request,pk):
     for b in buckets:
         b.delta_quantity = b.quantity - b.baseline_quantity
 
+    bucket_targets = {}
+    for bucket in buckets:
+        bucket_targets.setdefault(str(bucket.item_id), []).append(
+            {
+                'id': bucket.pk,
+                'bucket_start': bucket.bucket_start.isoformat(),
+            }
+        )
+
     exceptions = pub.rccp_exceptions.select_related(
         'work_center',
     ).all()
@@ -622,6 +631,7 @@ def operational_mps_detail(request,pk):
         {
             'pub': pub,
             'buckets': buckets,
+            'bucket_targets': bucket_targets,
             'exceptions': exceptions,
             'changes': changes,
             'revisions': revisions,

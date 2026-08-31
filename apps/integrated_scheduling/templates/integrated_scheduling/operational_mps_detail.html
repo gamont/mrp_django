@@ -1,4 +1,4 @@
-{% extends "ui/base.html" %}{% block title %}{{ pub.source }}</div>{% endblock %}{% block content %}
+{% extends "ui/base.html" %}{% block title %}{{ pub.source }}{% endblock %}{% block content %}
 <div id="mps-detail"><h1>{{ pub.source }} · 0.8.9</h1><p>Status: <b>{{ pub.status }}</b> · {{ pub.horizon_start }} → {{ pub.horizon_end }}</p>
 <div class="actions"><form method="post" action="{% url 'integrated-scheduling:operational-mps-action' pub.pk 'validate' %}">{% csrf_token %}<button class="btn">Revalidar RCCP</button></form>
 <form method="post" action="{% url 'integrated-scheduling:operational-mps-action' pub.pk 'publish' %}">{% csrf_token %}<button class="btn">Publicar MPS</button></form>
@@ -8,7 +8,7 @@
 <table><thead><tr><th>Semana</th><th>Item</th><th>Qtd atual</th><th>Baseline S&OP</th><th>Delta</th><th>Status</th><th>Editar</th><th>Mover volume</th></tr></thead><tbody>
 {% for b in buckets %}<tr><td>{{ b.bucket_start }}</td><td>{{ b.item.code }}</td><td>{{ b.quantity }}</td><td>{{ b.baseline_quantity }}</td><td>{{ b.delta_quantity }}</td><td>{{ b.mps_status }}{% if b.frozen_reason %}<br><small>{{ b.frozen_reason }}</small>{% endif %}</td>
 <td><form method="post" hx-post="{% url 'integrated-scheduling:operational-mps-bucket-edit' pub.pk b.pk %}" hx-target="body" hx-swap="innerHTML" action="{% url 'integrated-scheduling:operational-mps-bucket-edit' pub.pk b.pk %}">{% csrf_token %}<input name="quantity" type="number" step="0.0001" min="0" value="{{ b.quantity }}" style="width:110px"><input name="reason" placeholder="motivo" style="width:120px"><button class="btn">Salvar</button></form></td>
-<td><form method="post" hx-post="{% url 'integrated-scheduling:operational-mps-bucket-move' pub.pk b.pk %}" hx-target="body" hx-swap="innerHTML" action="{% url 'integrated-scheduling:operational-mps-bucket-move' pub.pk b.pk %}">{% csrf_token %}<select name="target_bucket_id">{% for t in buckets %}{% if t.item_id == b.item_id and t.pk != b.pk %}<option value="{{ t.pk }}">{{ t.bucket_start }}</option>{% endif %}{% endfor %}</select><input name="quantity" type="number" step="0.0001" min="0" placeholder="qtd" style="width:90px"><input name="reason" placeholder="motivo" style="width:110px"><button class="btn">Mover</button></form></td></tr>{% endfor %}</tbody></table>
+<td><form method="post" hx-post="{% url 'integrated-scheduling:operational-mps-bucket-move' pub.pk b.pk %}" hx-target="body" hx-swap="innerHTML" action="{% url 'integrated-scheduling:operational-mps-bucket-move' pub.pk b.pk %}">{% csrf_token %}<select name="target_bucket_id" class="mps-target-bucket" data-item-id="{{ b.item_id }}" data-current-bucket-id="{{ b.pk }}"><option value="">Selecione...</option></select><input name="quantity" type="number" step="0.0001" min="0" placeholder="qtd" style="width:90px"><input name="reason" placeholder="motivo" style="width:110px"><button class="btn">Mover</button></form></td></tr>{% endfor %}</tbody></table>
 <h2>Alterações / violações de time fence</h2><table><thead><tr><th>Quando</th><th>Item</th><th>De → Para</th><th>Violação</th><th>Status</th><th>Motivo</th><th>Decisão</th></tr></thead><tbody>{% for c in changes %}<tr><td>{{ c.requested_at }}</td><td>{{ c.source_bucket.item.code }}</td><td>{{ c.source_quantity_before }} → {{ c.source_quantity_after }}{% if c.target_bucket_id %}<br>{{ c.target_quantity_before }} → {{ c.target_quantity_after }} ({{ c.target_bucket.bucket_start }}){% endif %}</td><td>{{ c.violation }}</td><td>{{ c.status }}</td><td>{{ c.reason }}</td><td>{% if c.status == 'PENDING' %}<form style="display:inline" method="post" action="{% url 'integrated-scheduling:operational-mps-change-decide' pub.pk c.pk 'approve' %}">{% csrf_token %}<button class="btn">Aprovar</button></form><form style="display:inline" method="post" action="{% url 'integrated-scheduling:operational-mps-change-decide' pub.pk c.pk 'reject' %}">{% csrf_token %}<button class="btn">Rejeitar</button></form>{% else %}{{ c.decided_by|default:'—' }}{% endif %}</td></tr>{% empty %}<tr><td colspan="7">Sem alterações registradas.</td></tr>{% endfor %}</tbody></table>
 <h2>Revisões MPS · 0.8.3</h2>
 <p>A publicação exige revisão aprovada. Na política padrão 0.8.3, revisões não-baseline também exigem <b>MRP what-if concluído</b> antes da aprovação. O relatório compara OPs planejadas, compras planejadas, exceções, pegging e RCCP.</p>
@@ -29,4 +29,37 @@
 
 {% comment %}0.9.0 executive decision cockpit{% endcomment %}
 <p><a href="{% url 'integrated-scheduling:mps-decision-cockpit-dashboard-090' %}">Cockpit executivo de decisão MRP/MPS 0.9.0</a></p>
+{{ bucket_targets|json_script:"mps-bucket-targets" }}
+<script>
+(function () {
+    const dataElement = document.getElementById('mps-bucket-targets');
+    if (!dataElement) return;
+
+    const targetsByItem = JSON.parse(dataElement.textContent);
+
+    function populateTargets(select) {
+        if (select.dataset.loaded === 'true') return;
+
+        const itemId = select.dataset.itemId;
+        const currentBucketId = String(select.dataset.currentBucketId);
+        const targets = targetsByItem[itemId] || [];
+
+        targets.forEach(target => {
+            if (String(target.id) === currentBucketId) return;
+
+            const option = document.createElement('option');
+            option.value = target.id;
+            option.textContent = target.bucket_start;
+            select.appendChild(option);
+        });
+
+        select.dataset.loaded = 'true';
+    }
+
+    document.querySelectorAll('.mps-target-bucket').forEach(select => {
+        select.addEventListener('focus', () => populateTargets(select));
+        select.addEventListener('pointerdown', () => populateTargets(select));
+    });
+})();
+</script>
 </div>{% endblock %}
