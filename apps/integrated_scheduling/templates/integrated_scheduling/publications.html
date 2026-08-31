@@ -5,6 +5,6 @@
 <select name="trigger_type"><option value="MACHINE_BREAKDOWN">Quebra de máquina</option><option value="MATERIAL_SHORTAGE">Falta de material</option><option value="LABOR_ABSENCE">Ausência de operador</option><option value="PRIORITY_CHANGE">Mudança de prioridade</option><option value="MANUAL">Manual</option></select>
 <input name="source_type" placeholder="Tipo da origem"><input name="source_id" placeholder="ID origem"><input name="reason" placeholder="Motivo"><input name="days" value="14" size="4"><button type="submit">Preparar replanejamento</button></form></div>
 <div class="card"><table><thead><tr><th>Versão</th><th>Status</th><th>Publicada</th><th>Frozen until</th><th>Slots</th><th></th></tr></thead><tbody>
-{% for p in publications %}<tr><td>v{{ p.version }}</td><td>{{ p.get_status_display }}</td><td>{{ p.published_at }}</td><td>{{ p.frozen_until|default:"—" }}</td><td>{{ p.slots.count }}</td><td><a href="{% url 'integrated-scheduling:publication-detail' p.pk %}">Abrir</a></td></tr>{% empty %}<tr><td colspan="6">Nenhuma publicação.</td></tr>{% endfor %}
+{% for p in publications %}<tr><td>v{{ p.version }}</td><td>{{ p.get_status_display }}</td><td>{{ p.published_at }}</td><td>{{ p.frozen_until|default:"—" }}</td><td>{{ p.slot_count }}</td><td><a href="{% url 'integrated-scheduling:publication-detail' p.pk %}">Abrir</a></td></tr>{% empty %}<tr><td colspan="6">Nenhuma publicação.</td></tr>{% endfor %}
 </tbody></table></div>
 {% endblock %}

@@ -227,7 +227,7 @@ from .execution import publish_solver_run, sync_execution_actuals, planned_vs_ac
 @login_required
 def publication_dashboard(request):
     plant = _plant(request)
-    pubs = ProductionSchedulePublication.objects.filter(plant=plant).select_related("scenario", "solver_run").order_by("-version")[:20] if plant else []
+    pubs = ProductionSchedulePublication.objects.filter(plant=plant).select_related("scenario", "solver_run").annotate(slot_count=Count("slots")).order_by("-version")[:20] if plant else []
     return render(request, "integrated_scheduling/publications.html", {"plant": plant, "publications": pubs})
 
 @login_required
