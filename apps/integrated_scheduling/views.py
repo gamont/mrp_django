@@ -791,10 +791,49 @@ def operational_mps_optimize_088(request, pk, revision_id):
 
 @login_required
 def operational_mps_optimizer_report_088(request, pk, run_id):
-    from .models import OperationalMPSPublication, MPSRevisionOptimizationRun
-    pub=get_object_or_404(OperationalMPSPublication,pk=pk)
-    obj=get_object_or_404(MPSRevisionOptimizationRun.objects.select_related('revision','compare_revision'),pk=run_id,revision__publication=pub)
-    return render(request,'integrated_scheduling/operational_mps_optimizer_088.html',{'pub':pub,'run':obj,'candidates':obj.candidates.select_related('simulation').prefetch_related('actions').order_by('rank','id')})
+    from .models import (
+        MPSRevisionOptimizationAction,
+        MPSRevisionOptimizationRun,
+        OperationalMPSPublication,
+    )
+
+    pub = get_object_or_404(
+        OperationalMPSPublication,
+        pk=pk,
+    )
+    obj = get_object_or_404(
+        MPSRevisionOptimizationRun.objects.select_related(
+            "revision",
+            "compare_revision",
+        ),
+        pk=run_id,
+        revision__publication=pub,
+    )
+
+    candidates = (
+        obj.candidates
+        .select_related("simulation")
+        .prefetch_related(
+            Prefetch(
+                "actions",
+                queryset=MPSRevisionOptimizationAction.objects.select_related(
+                    "item",
+                    "supplier_to",
+                ),
+            )
+        )
+        .order_by("rank", "id")
+    )
+
+    return render(
+        request,
+        "integrated_scheduling/operational_mps_optimizer_088.html",
+        {
+            "pub": pub,
+            "run": obj,
+            "candidates": candidates,
+        },
+    )
 
 @login_required
 @require_POST
