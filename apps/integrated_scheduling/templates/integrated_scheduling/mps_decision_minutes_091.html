@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}Ata de decisão MPS 0.9.1{% endblock %}{% block content %}
+{% extends "ui/base.html" %}{% block title %}Ata de decisão MPS 0.9.1{% endblock %}{% block content %}
 <h1>Ata formal · {{ meeting.minute_number }}</h1><p>Cockpit #{{ cockpit.id }} · {{ cockpit.publication.source }} · <strong>{{ cockpit.status }}</strong></p>
 <p><a href="{% url 'integrated-scheduling:mps-decision-cockpit-detail-090' cockpit.id %}">← Voltar ao cockpit</a></p>
 <section class="card"><h2>Governança</h2>{% if check.ok %}<p>✓ Requisitos formais atendidos.</p>{% else %}<ul>{% for b in check.blockers %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}</section>

@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block content %}
+{% extends "ui/base.html" %}{% block content %}
 <p><a href="{% url 'integrated-scheduling:mps-decision-integrity-dashboard-095' %}">← Painel de integridade 0.9.5</a></p>
 <h1>Trilha de auditoria · Cockpit #{{ cockpit.id }}</h1>
 <p>Status da cadeia: <strong>{% if verification.ok %}VÁLIDA{% else %}INVÁLIDA{% endif %}</strong> · eventos {{ verification.event_count }} · head <code>{{ verification.head_hash }}</code></p>

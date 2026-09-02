@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "ui/base.html" %}
 {% block content %}<p><a href="{% url 'integrated-scheduling:mps-decision-minutes-091' cockpit.id %}">Ata formal e aprovações 0.9.1</a></p>
 <h1>Cockpit executivo #{{ cockpit.id }} · 0.9.0</h1>
 <p><b>{{ cockpit.publication.cycle.plant.code }}</b> · {{ cockpit.publication.source }} · run Pareto #{{ cockpit.optimization_run.id }} · baseline r{{ cockpit.baseline_revision.number }} · <b>{{ cockpit.get_status_display }}</b></p>
