@@ -251,24 +251,64 @@ def kanban_board(request: HttpRequest) -> HttpResponse:
 def advanced_planner(request: HttpRequest) -> HttpResponse:
     from datetime import datetime, timedelta
     from .services import weekly_maintenance_plan, maintenance_kanban
+
     plant = _selected_plant(request)
     if plant is None:
-        return render(request, "maintenance/error.html", {"message": "Nenhuma planta cadastrada."}, status=404)
+        return render(
+            request,
+            "maintenance/error.html",
+            {"message": "Nenhuma planta cadastrada."},
+            status=404,
+        )
+
     raw = request.GET.get("week")
     try:
-        day = datetime.strptime(raw, "%Y-%m-%d").date() if raw else timezone.localdate()
+        day = (
+            datetime.strptime(raw, "%Y-%m-%d").date()
+            if raw
+            else timezone.localdate()
+        )
     except ValueError:
         day = timezone.localdate()
+
     week_start = day - timedelta(days=day.weekday())
-    ctx = weekly_maintenance_plan(plant=plant, week_start=week_start)
+    ctx = weekly_maintenance_plan(
+        plant=plant,
+        week_start=week_start,
+    )
+
+    days = [week_start + timedelta(days=i) for i in range(7)]
+
+    orders_by_day = {day: [] for day in days}
+
+    for wo in ctx["orders"]:
+        if wo.scheduled_start:
+            scheduled_day = timezone.localtime(
+                wo.scheduled_start
+            ).date()
+            if scheduled_day in orders_by_day:
+                orders_by_day[scheduled_day].append(wo)
+
+    calendar_days = [
+        {
+            "date": day,
+            "orders": orders_by_day[day],
+        }
+        for day in days
+    ]
+
     ctx.update({
         "plant": plant,
         "plants": Plant.objects.order_by("code"),
         "backlog": maintenance_kanban(plant=plant),
-        "days": [week_start + timedelta(days=i) for i in range(7)],
+        "calendar_days": calendar_days,
     })
-    return render(request, "maintenance/advanced_planner.html", ctx)
 
+    return render(
+        request,
+        "maintenance/advanced_planner.html",
+        ctx,
+    )
 
 @require_POST
 @login_required

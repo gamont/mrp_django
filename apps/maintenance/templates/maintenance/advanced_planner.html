@@ -4,7 +4,24 @@
 <div id="planner-feedback"></div>
 <section class="m-card"><h2>Calendário semanal</h2><p>Arraste uma OM do backlog para um dia. O sistema programa às 08:00 usando a duração do plano e valida conflitos manutenção × produção.</p>
 <div class="m-calendar" id="maintenance-calendar">
-{% for day in days %}<div class="m-day" data-day="{{ day|date:'Y-m-d' }}"><h3>{{ day|date:"D d/m" }}</h3>{% for wo in orders %}{% if wo.scheduled_start.date == day %}<article class="m-scheduled"><a href="{% url 'maintenance:work-order-detail' wo.pk %}">{{ wo.number }}</a><small>{{ wo.scheduled_start|date:"H:i" }}–{{ wo.scheduled_end|date:"H:i" }}</small><span>{{ wo.asset.code }}</span></article>{% endif %}{% endfor %}</div>{% endfor %}
+{% for day in calendar_days %}
+<div class="m-day" data-day="{{ day.date|date:'Y-m-d' }}">
+  <h3>{{ day.date|date:"D d/m" }}</h3>
+
+  {% for wo in day.orders %}
+  <article class="m-scheduled">
+    <a href="{% url 'maintenance:work-order-detail' wo.pk %}">
+      {{ wo.number }}
+    </a>
+    <small>
+      {{ wo.scheduled_start|date:"H:i" }}–{{ wo.scheduled_end|date:"H:i" }}
+    </small>
+    <span>{{ wo.asset.code }}</span>
+  </article>
+  {% endfor %}
+</div>
+{% endfor %}
+
 </div></section>
 <div class="m-grid"><section class="m-card"><h2>Backlog priorizado</h2>{% for status, col in backlog.items %}{% for wo in col.orders %}{% if not wo.scheduled_start %}<article class="m-drag-card" draggable="true" data-wo="{{ wo.pk }}"><b>{{ wo.number }}</b><span>{{ wo.asset.code }}</span><small>{{ wo.get_priority_display }} · score {{ wo.priority_score }}</small></article>{% endif %}{% endfor %}{% endfor %}</section>
 <section class="m-card"><h2>Carga da equipe</h2><table><thead><tr><th>Técnico</th><th>Carga</th><th>Capacidade</th><th>Utilização</th></tr></thead><tbody>{% for row in technicians %}<tr><td>{{ row.technician.user.get_full_name|default:row.technician.user.username }}</td><td>{{ row.load_hours }} h</td><td>{{ row.capacity_hours }} h</td><td>{{ row.utilization|floatformat:1 }}%</td></tr>{% empty %}<tr><td colspan="4">Nenhum técnico cadastrado.</td></tr>{% endfor %}</tbody></table></section></div>
